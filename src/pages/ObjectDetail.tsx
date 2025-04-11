@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ObjectTimeline from '@/components/ObjectTimeline';
@@ -11,86 +11,218 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from "@/hooks/use-toast";
 import { Edit, Share2, Globe, Lock } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
-// Mock data (in a real app, this would come from a database)
-const mockObject = {
-  id: "123",
-  name: "Violão Takamine EG341SC",
-  description: "Meu violão acústico, comprado em 2010. Ele me acompanhou em muitas viagens e momentos importantes.",
-  isPublic: true,
-  tags: ["Instrumento", "Música", "Pessoal"],
-  createdAt: "10/04/2022"
-};
+interface ObjectType {
+  id: string;
+  name: string;
+  description: string | null;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
-const mockRecords = [
-  {
-    id: "1",
-    date: "12/04/2022",
-    title: "Primeira apresentação",
-    description: "Hoje usei o violão na minha primeira apresentação pública. Estava nervoso, mas o som ficou incrível.",
-    isPublic: true
-  },
-  {
-    id: "2",
-    date: "03/07/2022",
-    title: "Troca de cordas",
-    description: "Troquei as cordas para um conjunto de nylon de melhor qualidade. A sonoridade melhorou significativamente.",
-    isPublic: true
-  },
-  {
-    id: "3",
-    date: "22/10/2022",
-    title: "Pequeno reparo",
-    description: "Uma das tarraxas estava com problema. Levei na luthieria para um pequeno ajuste.",
-    isPublic: false
-  }
-];
+interface RecordType {
+  id: string;
+  object_id: string;
+  title: string;
+  description: string | null;
+  is_public: boolean;
+  created_at: string;
+}
 
 const ObjectDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const [object, setObject] = useState(mockObject);
-  const [records, setRecords] = useState(mockRecords);
+  
+  const [object, setObject] = useState<ObjectType | null>(null);
+  const [records, setRecords] = useState<RecordType[]>([]);
   const [showRecordForm, setShowRecordForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) {
+      fetchObjectDetails();
+      fetchObjectRecords();
+    }
+  }, [id]);
+
+  const fetchObjectDetails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('objects')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setObject(data);
+      } else {
+        toast({
+          title: "Objeto não encontrado",
+          description: "Não foi possível encontrar o objeto solicitado.",
+          variant: "destructive"
+        });
+        navigate('/explore');
+      }
+    } catch (error) {
+      console.error('Error fetching object details:', error);
+      toast({
+        title: "Erro ao carregar objeto",
+        description: "Ocorreu um erro ao carregar os detalhes do objeto.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchObjectRecords = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('records')
+        .select('*')
+        .eq('object_id', id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      if (data) {
+        setRecords(data);
+      }
+    } catch (error) {
+      console.error('Error fetching object records:', error);
+      toast({
+        title: "Erro ao carregar registros",
+        description: "Ocorreu um erro ao carregar os registros do objeto.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleAddRecord = () => {
     setShowRecordForm(true);
   };
 
-  const handleSubmitRecord = (record: { title: string; description: string; isPublic: boolean }) => {
-    const newRecord = {
-      id: Date.now().toString(),
-      date: new Date().toLocaleDateString('pt-BR'),
-      ...record
-    };
-    
-    setRecords([newRecord, ...records]);
-    setShowRecordForm(false);
-    
-    toast({
-      title: "Registro adicionado",
-      description: "O novo registro foi adicionado com sucesso à linha do tempo.",
-    });
+  const handleSubmitRecord = async (record: { title: string; description: string; isPublic: boolean }) => {
+    try {
+      const { data, error } = await supabase
+        .from('records')
+        .insert([
+          {
+            object_id: id,
+            title: record.title,
+            description: record.description,
+            is_public: record.isPublic
+          }
+        ])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      setRecords([data, ...records]);
+      setShowRecordForm(false);
+      
+      toast({
+        title: "Registro adicionado",
+        description: "O novo registro foi adicionado com sucesso à linha do tempo.",
+      });
+      
+      // Update the object's updated_at timestamp
+      await supabase
+        .from('objects')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', id);
+      
+    } catch (error) {
+      console.error('Error adding record:', error);
+      toast({
+        title: "Erro ao adicionar registro",
+        description: "Ocorreu um erro ao adicionar o registro. Por favor, tente novamente.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const toggleVisibility = () => {
-    setObject({ ...object, isPublic: !object.isPublic });
+  const toggleVisibility = async () => {
+    if (!object) return;
     
-    toast({
-      title: `Objeto agora é ${!object.isPublic ? 'Público' : 'Privado'}`,
-      description: `A visibilidade do objeto foi alterada com sucesso.`,
-    });
+    try {
+      const newVisibility = !object.is_public;
+      
+      const { error } = await supabase
+        .from('objects')
+        .update({ is_public: newVisibility })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setObject({ ...object, is_public: newVisibility });
+      
+      toast({
+        title: `Objeto agora é ${newVisibility ? 'Público' : 'Privado'}`,
+        description: `A visibilidade do objeto foi alterada com sucesso.`,
+      });
+    } catch (error) {
+      console.error('Error toggling visibility:', error);
+      toast({
+        title: "Erro ao alterar visibilidade",
+        description: "Ocorreu um erro ao alterar a visibilidade do objeto.",
+        variant: "destructive"
+      });
+    }
   };
 
   const shareObject = () => {
-    // In a real app, this would copy the actual link
-    navigator.clipboard.writeText(`https://connectos.app/object/${id}`);
+    // Copy the object URL to clipboard
+    const url = `${window.location.origin}/object/${id}`;
+    navigator.clipboard.writeText(url);
     
     toast({
       title: "Link copiado",
       description: "O link do objeto foi copiado para a área de transferência.",
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <p>Carregando detalhes do objeto...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!object) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">Objeto não encontrado</h1>
+            <Button onClick={() => navigate('/explore')}>Ver outros objetos</Button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Format records for the timeline component
+  const formattedRecords = records.map(record => ({
+    id: record.id,
+    date: new Date(record.created_at).toLocaleDateString('pt-BR'),
+    title: record.title,
+    description: record.description || "",
+    isPublic: record.is_public
+  }));
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -103,19 +235,11 @@ const ObjectDetail = () => {
                 <div>
                   <h1 className="text-2xl font-bold">{object.name}</h1>
                   <p className="text-muted-foreground mt-2">{object.description}</p>
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {object.tags.map((tag, index) => (
-                      <span 
-                        key={index} 
-                        className="text-xs px-2 py-1 rounded-full bg-white/50 dark:bg-connectos-600/50"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
                 </div>
                 <div className="flex flex-col gap-2 md:items-end">
-                  <p className="text-sm text-muted-foreground">Criado em {object.createdAt}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Criado em {new Date(object.created_at).toLocaleDateString('pt-BR')}
+                  </p>
                   <div className="flex gap-2 mt-2">
                     <Button variant="outline" size="sm" onClick={shareObject}>
                       <Share2 className="mr-2 h-4 w-4" />
@@ -128,18 +252,18 @@ const ObjectDetail = () => {
                   </div>
                   <div className="flex items-center gap-2 mt-4">
                     <div className="flex items-center">
-                      {object.isPublic ? (
+                      {object.is_public ? (
                         <Globe className="h-4 w-4 text-muted-foreground" />
                       ) : (
                         <Lock className="h-4 w-4 text-muted-foreground" />
                       )}
                       <Label htmlFor="public-toggle" className="ml-2 cursor-pointer">
-                        {object.isPublic ? "Público" : "Privado"}
+                        {object.is_public ? "Público" : "Privado"}
                       </Label>
                     </div>
                     <Switch 
                       id="public-toggle" 
-                      checked={object.isPublic} 
+                      checked={object.is_public} 
                       onCheckedChange={toggleVisibility}
                     />
                   </div>
@@ -159,7 +283,7 @@ const ObjectDetail = () => {
         ) : null}
         
         <ObjectTimeline 
-          records={records} 
+          records={formattedRecords} 
           onAddRecord={handleAddRecord} 
         />
       </main>

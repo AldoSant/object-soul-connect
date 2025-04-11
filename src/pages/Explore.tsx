@@ -1,84 +1,93 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ObjectCard from '@/components/ObjectCard';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Filter, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from "@/hooks/use-toast";
 
-// Mock data for demonstration
-const mockObjects = [
-  {
-    id: "123",
-    name: "Violão Takamine EG341SC",
-    description: "Meu violão acústico, comprado em 2010. Ele me acompanhou em muitas viagens e momentos importantes.",
-    lastUpdated: "22/10/2022",
-    isPublic: true,
-    recordCount: 3
-  },
-  {
-    id: "124",
-    name: "Relógio de Bolso Vintage",
-    description: "Relógio de bolso que pertenceu ao meu avô. Fabricado em 1945 e passado de geração em geração.",
-    lastUpdated: "15/03/2023",
-    isPublic: true,
-    recordCount: 5
-  },
-  {
-    id: "125",
-    name: "Câmera Analógica Canon AE-1",
-    description: "Minha primeira câmera analógica. Comprada em um brechó em 2018. Já fotografou muitas paisagens.",
-    lastUpdated: "07/06/2023",
-    isPublic: true,
-    recordCount: 8
-  },
-  {
-    id: "126",
-    name: "Livro Assinado",
-    description: "Exemplar de 'Cem Anos de Solidão' assinado pelo autor em uma feira literária.",
-    lastUpdated: "29/09/2022",
-    isPublic: true,
-    recordCount: 2
-  },
-  {
-    id: "127",
-    name: "Mesa de Jantar",
-    description: "Mesa de madeira maciça feita por artesão local em 2015. Testemunhou muitas refeições em família.",
-    lastUpdated: "11/01/2023",
-    isPublic: false,
-    recordCount: 4
-  },
-  {
-    id: "128",
-    name: "Computador Antigo",
-    description: "Meu primeiro computador pessoal. Um PC montado em 2005 com Windows XP.",
-    lastUpdated: "19/11/2022",
-    isPublic: true,
-    recordCount: 6
-  }
-];
+// Define the object type
+interface ObjectType {
+  id: string;
+  name: string;
+  description: string | null;
+  is_public: boolean | null;
+  created_at: string;
+  updated_at: string;
+  recordCount?: number;
+}
 
 const Explore = () => {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredObjects, setFilteredObjects] = useState(mockObjects);
+  const [objects, setObjects] = useState<ObjectType[]>([]);
+  const [filteredObjects, setFilteredObjects] = useState<ObjectType[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    fetchObjects();
+  }, []);
+  
+  const fetchObjects = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch all public objects
+      const { data, error } = await supabase
+        .from('objects')
+        .select('*')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // For each object, count its records
+      if (data) {
+        const objectsWithRecordCount = await Promise.all(data.map(async (obj) => {
+          const { count, error: countError } = await supabase
+            .from('records')
+            .select('*', { count: 'exact', head: true })
+            .eq('object_id', obj.id);
+          
+          return {
+            ...obj,
+            recordCount: count || 0
+          };
+        }));
+        
+        setObjects(objectsWithRecordCount);
+        setFilteredObjects(objectsWithRecordCount);
+      }
+    } catch (error) {
+      console.error('Error fetching objects:', error);
+      toast({
+        title: "Erro ao carregar objetos",
+        description: "Não foi possível carregar a lista de objetos. Por favor, tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      const filtered = mockObjects.filter(obj => 
+      const filtered = objects.filter(obj => 
         obj.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        obj.description.toLowerCase().includes(searchQuery.toLowerCase())
+        (obj.description && obj.description.toLowerCase().includes(searchQuery.toLowerCase()))
       );
       setFilteredObjects(filtered);
     } else {
-      setFilteredObjects(mockObjects);
+      setFilteredObjects(objects);
     }
   };
   
   const clearSearch = () => {
     setSearchQuery("");
-    setFilteredObjects(mockObjects);
+    setFilteredObjects(objects);
   };
   
   return (
@@ -122,7 +131,7 @@ const Explore = () => {
           
           <div className="mb-6 flex justify-between items-center">
             <p className="text-sm text-muted-foreground">
-              {filteredObjects.length} objetos encontrados
+              {isLoading ? "Carregando objetos..." : `${filteredObjects.length} objetos encontrados`}
             </p>
             <Button variant="outline" size="sm" className="flex items-center gap-2">
               <Filter className="h-4 w-4" />
@@ -130,21 +139,29 @@ const Explore = () => {
             </Button>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredObjects.map((object) => (
-              <ObjectCard 
-                key={object.id}
-                id={object.id}
-                name={object.name}
-                description={object.description}
-                lastUpdated={object.lastUpdated}
-                isPublic={object.isPublic}
-                recordCount={object.recordCount}
-              />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="h-40 bg-gray-100 animate-pulse rounded-lg"></div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredObjects.map((object) => (
+                <ObjectCard 
+                  key={object.id}
+                  id={object.id}
+                  name={object.name}
+                  description={object.description || ""}
+                  lastUpdated={new Date(object.updated_at).toLocaleDateString('pt-BR')}
+                  isPublic={Boolean(object.is_public)}
+                  recordCount={object.recordCount || 0}
+                />
+              ))}
+            </div>
+          )}
           
-          {filteredObjects.length === 0 && (
+          {!isLoading && filteredObjects.length === 0 && (
             <div className="text-center py-12">
               <h3 className="text-lg font-medium">Nenhum objeto encontrado</h3>
               <p className="text-muted-foreground mt-1">Tente uma busca diferente ou explore outros termos</p>

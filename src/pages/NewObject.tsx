@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Tag, QrCode, Link as LinkIcon } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const NewObject = () => {
   const navigate = useNavigate();
@@ -20,20 +21,55 @@ const NewObject = () => {
   const [description, setDescription] = useState('');
   const [isPublic, setIsPublic] = useState(true);
   const [tags, setTags] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // In a real app, this would send data to a backend
-    toast({
-      title: "Objeto criado com sucesso!",
-      description: "Seu novo objeto digital agora está pronto para receber registros.",
-    });
+    if (!name.trim()) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Por favor, dê um nome ao seu objeto.",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    // Navigate to the new object page (using a hardcoded ID for demo)
-    setTimeout(() => {
-      navigate('/object/123');
-    }, 1000);
+    setIsSubmitting(true);
+    
+    try {
+      // Insert object into the database
+      const { data, error } = await supabase
+        .from('objects')
+        .insert([
+          { 
+            name, 
+            description, 
+            is_public: isPublic 
+          }
+        ])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Objeto criado com sucesso!",
+        description: "Seu novo objeto digital agora está pronto para receber registros.",
+      });
+      
+      // Navigate to the new object page
+      navigate(`/object/${data.id}`);
+    } catch (error) {
+      console.error('Error creating object:', error);
+      toast({
+        title: "Erro ao criar objeto",
+        description: "Ocorreu um erro ao registrar seu objeto. Por favor, tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   return (
@@ -97,10 +133,10 @@ const NewObject = () => {
                     
                     <Button 
                       type="submit" 
-                      disabled={!name} 
+                      disabled={!name || isSubmitting} 
                       className="w-full bg-connectos-400 hover:bg-connectos-500"
                     >
-                      Criar objeto
+                      {isSubmitting ? "Criando..." : "Criar objeto"}
                     </Button>
                   </form>
                 </CardContent>
