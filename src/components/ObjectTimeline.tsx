@@ -1,16 +1,9 @@
-
 import React from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Lock, Globe } from 'lucide-react';
 import MediaDisplay from './MediaDisplay';
-
-interface MediaFile {
-  id: string;
-  url: string;
-  type: 'image' | 'audio' | 'video';
-  name: string;
-}
+import { MediaFile } from './MediaUpload';
 
 interface TimelineRecord {
   id: string;

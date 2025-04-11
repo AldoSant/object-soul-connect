@@ -14,6 +14,10 @@ interface MediaFile {
   url: string;
   type: 'image' | 'audio' | 'video';
   name: string;
+  file?: File;
+  preview?: string;
+  uploading?: boolean;
+  uploaded?: boolean;
 }
 
 interface RecordFormProps {
@@ -37,7 +41,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSubmit, onCancel }) => {
     e.preventDefault();
     
     // Check if all files are uploaded
-    if (mediaFiles.some(file => !file.uploaded && file.file)) {
+    if (mediaFiles.some(file => file.uploaded === false && file.file)) {
       alert("Por favor, envie todos os arquivos antes de salvar o registro.");
       return;
     }

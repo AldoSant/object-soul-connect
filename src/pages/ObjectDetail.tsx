@@ -12,13 +12,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from "@/hooks/use-toast";
 import { Edit, Share2, Globe, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-
-interface MediaFile {
-  id: string;
-  url: string;
-  type: 'image' | 'audio' | 'video';
-  name: string;
-}
+import { Json } from '@/integrations/supabase/types';
+import { MediaFile } from '@/components/MediaUpload';
 
 interface ObjectType {
   id: string;
@@ -99,7 +94,13 @@ const ObjectDetail = () => {
       if (error) throw error;
       
       if (data) {
-        setRecords(data);
+        // Transform media_files from Json to MediaFile[]
+        const transformedData: RecordType[] = data.map(record => ({
+          ...record,
+          media_files: record.media_files ? (record.media_files as unknown as MediaFile[]) : null
+        }));
+        
+        setRecords(transformedData);
       }
     } catch (error) {
       console.error('Error fetching object records:', error);
@@ -130,7 +131,7 @@ const ObjectDetail = () => {
             title: record.title,
             description: record.description,
             is_public: record.isPublic,
-            media_files: record.mediaFiles.length > 0 ? record.mediaFiles : null
+            media_files: record.mediaFiles.length > 0 ? record.mediaFiles as unknown as Json : null
           }
         ])
         .select()
@@ -138,7 +139,13 @@ const ObjectDetail = () => {
       
       if (error) throw error;
       
-      setRecords([data, ...records]);
+      // Transform the returned data to match our RecordType
+      const newRecord: RecordType = {
+        ...data,
+        media_files: data.media_files ? (data.media_files as unknown as MediaFile[]) : null
+      };
+      
+      setRecords([newRecord, ...records]);
       setShowRecordForm(false);
       
       toast({

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -6,7 +5,7 @@ import { Image, Paperclip, X, FileAudio, FileVideo } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 
-interface MediaFile {
+export interface MediaFile {
   id: string;
   url: string;
   type: 'image' | 'audio' | 'video';

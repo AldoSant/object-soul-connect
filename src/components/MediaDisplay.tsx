@@ -1,13 +1,7 @@
 
 import React from 'react';
 import { File, FileAudio, FileVideo, Image as ImageIcon } from 'lucide-react';
-
-interface MediaFile {
-  id: string;
-  url: string;
-  type: 'image' | 'audio' | 'video';
-  name: string;
-}
+import { MediaFile } from './MediaUpload';
 
 interface MediaDisplayProps {
   media: MediaFile[];
