@@ -7,9 +7,22 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { X } from 'lucide-react';
+import MediaUpload from './MediaUpload';
+
+interface MediaFile {
+  id: string;
+  url: string;
+  type: 'image' | 'audio' | 'video';
+  name: string;
+}
 
 interface RecordFormProps {
-  onSubmit: (record: { title: string; description: string; isPublic: boolean }) => void;
+  onSubmit: (record: { 
+    title: string; 
+    description: string; 
+    isPublic: boolean;
+    mediaFiles: MediaFile[];
+  }) => void;
   onCancel: () => void;
 }
 
@@ -17,10 +30,33 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSubmit, onCancel }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isPublic, setIsPublic] = useState(true);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ title, description, isPublic });
+    
+    // Check if all files are uploaded
+    if (mediaFiles.some(file => !file.uploaded && file.file)) {
+      alert("Por favor, envie todos os arquivos antes de salvar o registro.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    // Clean up media files to only include necessary data
+    const cleanMediaFiles = mediaFiles.map(({ id, url, type, name }) => ({
+      id, url, type, name
+    }));
+    
+    onSubmit({ 
+      title, 
+      description, 
+      isPublic,
+      mediaFiles: cleanMediaFiles
+    });
+    
+    setIsSubmitting(false);
   };
 
   return (
@@ -57,6 +93,11 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSubmit, onCancel }) => {
             />
           </div>
           
+          <MediaUpload
+            mediaFiles={mediaFiles}
+            onChange={setMediaFiles}
+          />
+          
           <div className="flex items-center justify-between">
             <Label htmlFor="isPublic" className="cursor-pointer">Visibilidade pública</Label>
             <Switch 
@@ -68,7 +109,13 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSubmit, onCancel }) => {
           
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-            <Button type="submit" className="bg-connectos-400 hover:bg-connectos-500">Salvar</Button>
+            <Button 
+              type="submit" 
+              className="bg-connectos-400 hover:bg-connectos-500"
+              disabled={isSubmitting || !title}
+            >
+              {isSubmitting ? "Salvando..." : "Salvar"}
+            </Button>
           </div>
         </div>
       </form>

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Tag, QrCode, Link as LinkIcon } from 'lucide-react';
+import { Tag, QrCode, Link as LinkIcon, PlusCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const NewObject = () => {
@@ -48,8 +48,7 @@ const NewObject = () => {
             is_public: isPublic 
           }
         ])
-        .select()
-        .single();
+        .select();
       
       if (error) throw error;
       
@@ -59,7 +58,11 @@ const NewObject = () => {
       });
       
       // Navigate to the new object page
-      navigate(`/object/${data.id}`);
+      if (data && data.length > 0) {
+        navigate(`/object/${data[0].id}`);
+      } else {
+        throw new Error("No data returned from object creation");
+      }
     } catch (error) {
       console.error('Error creating object:', error);
       toast({
@@ -75,9 +78,9 @@ const NewObject = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1 py-8">
+      <main className="flex-1 py-8 bg-gradient-to-b from-connectos-50/30 to-transparent">
         <div className="container max-w-4xl">
-          <h1 className="text-3xl font-bold mb-8">Registrar novo objeto</h1>
+          <h1 className="text-3xl font-bold mb-8 text-connectos-700">Registrar novo objeto</h1>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2">
@@ -181,6 +184,17 @@ const NewObject = () => {
                         <h3 className="font-medium">Link compartilhável</h3>
                         <p className="text-sm text-muted-foreground">Compartilhe o link direto do objeto</p>
                       </div>
+                    </div>
+                    
+                    <div className="pt-4 border-t">
+                      <Button 
+                        variant="outline" 
+                        className="w-full flex items-center justify-center gap-2"
+                        onClick={() => navigate('/explore')}
+                      >
+                        <PlusCircle className="h-4 w-4" />
+                        Ver objetos existentes
+                      </Button>
                     </div>
                   </div>
                 </CardContent>

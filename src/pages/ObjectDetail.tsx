@@ -13,6 +13,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Edit, Share2, Globe, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
+interface MediaFile {
+  id: string;
+  url: string;
+  type: 'image' | 'audio' | 'video';
+  name: string;
+}
+
 interface ObjectType {
   id: string;
   name: string;
@@ -29,6 +36,7 @@ interface RecordType {
   description: string | null;
   is_public: boolean;
   created_at: string;
+  media_files: MediaFile[] | null;
 }
 
 const ObjectDetail = () => {
@@ -107,7 +115,12 @@ const ObjectDetail = () => {
     setShowRecordForm(true);
   };
 
-  const handleSubmitRecord = async (record: { title: string; description: string; isPublic: boolean }) => {
+  const handleSubmitRecord = async (record: { 
+    title: string; 
+    description: string; 
+    isPublic: boolean;
+    mediaFiles: MediaFile[];
+  }) => {
     try {
       const { data, error } = await supabase
         .from('records')
@@ -116,7 +129,8 @@ const ObjectDetail = () => {
             object_id: id,
             title: record.title,
             description: record.description,
-            is_public: record.isPublic
+            is_public: record.isPublic,
+            media_files: record.mediaFiles.length > 0 ? record.mediaFiles : null
           }
         ])
         .select()
@@ -221,7 +235,8 @@ const ObjectDetail = () => {
     date: new Date(record.created_at).toLocaleDateString('pt-BR'),
     title: record.title,
     description: record.description || "",
-    isPublic: record.is_public
+    isPublic: record.is_public,
+    mediaFiles: record.media_files || []
   }));
 
   return (

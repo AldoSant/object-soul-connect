@@ -42,6 +42,7 @@ export type Database = {
           description: string | null
           id: string
           is_public: boolean | null
+          media_files: Json | null
           object_id: string
           title: string
         }
@@ -50,6 +51,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_public?: boolean | null
+          media_files?: Json | null
           object_id: string
           title: string
         }
@@ -58,6 +60,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_public?: boolean | null
+          media_files?: Json | null
           object_id?: string
           title?: string
         }

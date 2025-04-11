@@ -3,6 +3,14 @@ import React from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Lock, Globe } from 'lucide-react';
+import MediaDisplay from './MediaDisplay';
+
+interface MediaFile {
+  id: string;
+  url: string;
+  type: 'image' | 'audio' | 'video';
+  name: string;
+}
 
 interface TimelineRecord {
   id: string;
@@ -10,6 +18,7 @@ interface TimelineRecord {
   title: string;
   description: string;
   isPublic: boolean;
+  mediaFiles?: MediaFile[];
 }
 
 interface ObjectTimelineProps {
@@ -46,6 +55,10 @@ const ObjectTimeline: React.FC<ObjectTimelineProps> = ({ records, onAddRecord })
                 </div>
                 <p className="text-sm text-muted-foreground mb-2">{record.date}</p>
                 <p className="text-gray-700 dark:text-gray-300">{record.description}</p>
+                
+                {record.mediaFiles && record.mediaFiles.length > 0 && (
+                  <MediaDisplay media={record.mediaFiles} />
+                )}
               </div>
             </div>
           ))
