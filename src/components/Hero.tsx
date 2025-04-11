@@ -35,9 +35,9 @@ const Hero: React.FC = () => {
             </p>
             
             <Button asChild size="lg" className="bg-connectos-400 hover:bg-connectos-500">
-              <Link to="/object/new">
+              <Link to="/story/new">
                 <Tag className="mr-2 h-5 w-5" />
-                Registrar um objeto
+                Registrar uma história
               </Link>
             </Button>
           </div>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -246,12 +247,12 @@ const NewStory = () => {
                             />
                           </div>
                           <div>
-                            <Label htmlFor="state">Estado</Label>
+                            <Label htmlFor="state">Estado/Província/Região</Label>
                             <Input 
                               id="state" 
                               value={location.state || ''} 
                               onChange={(e) => setLocation({...location, state: e.target.value})} 
-                              placeholder="Estado"
+                              placeholder="Estado/Província/Região"
                             />
                           </div>
                           <div>
@@ -275,7 +276,10 @@ const NewStory = () => {
                             <span>Imagem de capa</span>
                           </div>
                         </Label>
-                        <div className="flex flex-col items-center p-4 border border-dashed rounded-md bg-gray-50 dark:bg-gray-800">
+                        <div 
+                          className="flex flex-col items-center p-4 border border-dashed rounded-md bg-gray-50 dark:bg-gray-800 cursor-pointer"
+                          onClick={() => document.getElementById('coverImage')?.click()}
+                        >
                           {coverImagePreview ? (
                             <div className="mb-2 w-full">
                               <img 
@@ -288,7 +292,8 @@ const NewStory = () => {
                                 variant="ghost" 
                                 size="sm" 
                                 className="mt-2 w-full"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setCoverImage(null);
                                   setCoverImagePreview(null);
                                 }}
@@ -321,7 +326,10 @@ const NewStory = () => {
                             <span>Miniatura</span>
                           </div>
                         </Label>
-                        <div className="flex flex-col items-center p-4 border border-dashed rounded-md bg-gray-50 dark:bg-gray-800">
+                        <div 
+                          className="flex flex-col items-center p-4 border border-dashed rounded-md bg-gray-50 dark:bg-gray-800 cursor-pointer"
+                          onClick={() => document.getElementById('thumbnail')?.click()}
+                        >
                           {thumbnailPreview ? (
                             <div className="mb-2 w-full">
                               <img 
@@ -334,7 +342,8 @@ const NewStory = () => {
                                 variant="ghost" 
                                 size="sm" 
                                 className="mt-2 w-full"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setThumbnail(null);
                                   setThumbnailPreview(null);
                                 }}

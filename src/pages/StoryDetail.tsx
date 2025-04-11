@@ -1,296 +1,204 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import StoryTimeline from '@/components/StoryTimeline';
 import RecordForm from '@/components/RecordForm';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, Share2, Globe, Lock, Download, MapPin, FileText, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Json } from '@/integrations/supabase/types';
-import { MediaFile, Story, RecordType, Location, StoryType, jsonToLocation, jsonToMediaFiles } from '@/types';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { MediaFile, Location, RecordType, StoryType, jsonToLocation, jsonToMediaFiles } from '@/types';
+import { Globe, Lock, MapPin, Clock, Tag as TagIcon, Plus, FileDown } from 'lucide-react';
+import { format } from 'date-fns';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
-// Map for story type display names
-const storyTypeLabels: Record<string, string> = {
-  'objeto': 'Objeto',
-  'pessoa': 'Pessoa', 
-  'espaço': 'Espaço',
-  'evento': 'Evento',
-  'outro': 'Outro'
-};
+import { Json } from '@/integrations/supabase/types';
+
+interface TimelineRecord {
+  id: string;
+  date: string;
+  title: string;
+  description: string;
+  isPublic: boolean;
+  location?: Location;
+  mediaFiles?: MediaFile[];
+}
 
 const StoryDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const [story, setStory] = useState<Story | null>(null);
+  const [story, setStory] = useState<any>(null);
   const [records, setRecords] = useState<RecordType[]>([]);
-  const [showRecordForm, setShowRecordForm] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-
+  const [timelineRecords, setTimelineRecords] = useState<TimelineRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showNewRecordForm, setShowNewRecordForm] = useState(false);
+  
   useEffect(() => {
-    if (id) {
-      fetchStoryDetails();
-      fetchStoryRecords();
-    }
+    if (id) loadStory(id);
   }, [id]);
-
-  const fetchStoryDetails = async () => {
+  
+  const loadStory = async (storyId: string) => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Get story
+      const { data: storyData, error: storyError } = await supabase
         .from('objects')
         .select('*')
-        .eq('id', id)
+        .eq('id', storyId)
         .single();
       
-      if (error) throw error;
+      if (storyError) throw storyError;
       
-      if (data) {
-        setStory({
-          ...data,
-          location: jsonToLocation(data.location),
-          story_type: (data.story_type || 'objeto') as StoryType
-        } as Story);
-      } else {
-        toast({
-          title: "História não encontrada",
-          description: "Não foi possível encontrar a história solicitada.",
-          variant: "destructive"
-        });
-        navigate('/explore');
-      }
-    } catch (error) {
-      console.error('Error fetching story details:', error);
-      toast({
-        title: "Erro ao carregar história",
-        description: "Ocorreu um erro ao carregar os detalhes da história.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchStoryRecords = async () => {
-    try {
-      const { data, error } = await supabase
+      // Get records
+      const { data: recordsData, error: recordsError } = await supabase
         .from('records')
         .select('*')
-        .eq('object_id', id)
+        .eq('object_id', storyId)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (recordsError) throw recordsError;
       
-      if (data) {
-        // Transform the data to match our RecordType interface
-        const transformedData: RecordType[] = data.map(record => ({
-          id: record.id,
-          story_id: record.object_id,
-          title: record.title,
-          description: record.description,
-          is_public: record.is_public || false,
-          created_at: record.created_at,
-          location: jsonToLocation(record.location),
-          media_files: jsonToMediaFiles(record.media_files)
-        }));
-        
-        setRecords(transformedData);
-      }
+      setStory({
+        ...storyData,
+        location: jsonToLocation(storyData.location)
+      });
+      
+      const processedRecords = recordsData.map(record => ({
+        ...record,
+        story_id: record.object_id,
+        location: jsonToLocation(record.location),
+        media_files: jsonToMediaFiles(record.media_files)
+      }));
+      
+      setRecords(processedRecords);
+      
+      // Convert to timeline format
+      const timeline = processedRecords.map(record => ({
+        id: record.id,
+        date: format(new Date(record.created_at), 'dd/MM/yyyy HH:mm'),
+        title: record.title,
+        description: record.description || '',
+        isPublic: record.is_public || false,
+        location: record.location,
+        mediaFiles: record.media_files
+      }));
+      
+      setTimelineRecords(timeline);
     } catch (error) {
-      console.error('Error fetching story records:', error);
+      console.error('Error loading story:', error);
       toast({
-        title: "Erro ao carregar registros",
-        description: "Ocorreu um erro ao carregar os registros da história.",
+        title: "Erro ao carregar história",
+        description: "Não foi possível buscar os detalhes da história.",
         variant: "destructive"
       });
+      navigate('/explore');
+    } finally {
+      setLoading(false);
     }
   };
-
-  const handleAddRecord = () => {
-    setShowRecordForm(true);
-  };
-
-  const handleSubmitRecord = async (record: { 
-    title: string; 
-    description: string; 
+  
+  const handleAddRecord = async (record: {
+    title: string;
+    description: string;
     isPublic: boolean;
     location: Location | null;
     mediaFiles: MediaFile[];
   }) => {
     try {
+      // Insert record
       const { data, error } = await supabase
         .from('records')
-        .insert([
-          {
-            object_id: id,
-            title: record.title,
-            description: record.description,
-            is_public: record.isPublic,
-            location: record.location as Json,
-            media_files: record.mediaFiles as unknown as Json
-          }
-        ])
-        .select()
-        .single();
+        .insert({
+          object_id: id,
+          title: record.title,
+          description: record.description,
+          is_public: record.isPublic,
+          location: record.location as unknown as Json,
+          media_files: record.mediaFiles as unknown as Json
+        })
+        .select();
       
       if (error) throw error;
       
-      // Transform the returned data to match our RecordType interface
-      const newRecord: RecordType = {
-        id: data.id,
-        story_id: data.object_id,
-        title: data.title,
-        description: data.description,
-        is_public: data.is_public || false,
-        created_at: data.created_at,
-        location: jsonToLocation(data.location),
-        media_files: jsonToMediaFiles(data.media_files)
-      };
+      // Update local state
+      if (data) {
+        const newRecord = {
+          ...data[0],
+          story_id: data[0].object_id,
+          location: jsonToLocation(data[0].location),
+          media_files: jsonToMediaFiles(data[0].media_files)
+        };
+        
+        setRecords([newRecord, ...records]);
+        
+        // Add to timeline
+        const newTimelineRecord = {
+          id: newRecord.id,
+          date: format(new Date(newRecord.created_at), 'dd/MM/yyyy HH:mm'),
+          title: newRecord.title,
+          description: newRecord.description || '',
+          isPublic: newRecord.is_public || false,
+          location: newRecord.location,
+          mediaFiles: newRecord.media_files
+        };
+        
+        setTimelineRecords([newTimelineRecord, ...timelineRecords]);
+      }
       
-      setRecords([newRecord, ...records]);
-      setShowRecordForm(false);
+      // Hide form
+      setShowNewRecordForm(false);
       
+      // Show success message
       toast({
         title: "Registro adicionado",
-        description: "O novo registro foi adicionado com sucesso à linha do tempo.",
+        description: "Seu novo registro foi adicionado com sucesso à timeline.",
       });
-      
-      // Update the story's updated_at timestamp
-      await supabase
-        .from('objects')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', id);
       
     } catch (error) {
       console.error('Error adding record:', error);
       toast({
         title: "Erro ao adicionar registro",
-        description: "Ocorreu um erro ao adicionar o registro. Por favor, tente novamente.",
+        description: "Não foi possível salvar o registro. Por favor, tente novamente.",
         variant: "destructive"
       });
     }
   };
 
-  const toggleVisibility = async () => {
-    if (!story) return;
-    
+  // Function to generate PDF of the story
+  const generatePDF = () => {
     try {
-      const newVisibility = !story.is_public;
-      
-      const { error } = await supabase
-        .from('objects')
-        .update({ is_public: newVisibility })
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      setStory({ ...story, is_public: newVisibility });
-      
-      toast({
-        title: `História agora é ${newVisibility ? 'Pública' : 'Privada'}`,
-        description: `A visibilidade da história foi alterada com sucesso.`,
-      });
-    } catch (error) {
-      console.error('Error toggling visibility:', error);
-      toast({
-        title: "Erro ao alterar visibilidade",
-        description: "Ocorreu um erro ao alterar a visibilidade da história.",
-        variant: "destructive"
-      });
-    }
-  };
+      if (!story) return;
 
-  const shareStory = () => {
-    // Copy the story URL to clipboard
-    const url = `${window.location.origin}/story/${id}`;
-    navigator.clipboard.writeText(url);
-    
-    toast({
-      title: "Link copiado",
-      description: "O link da história foi copiado para a área de transferência.",
-    });
-  };
-
-  const generatePDF = async () => {
-    if (!story) return;
-    
-    setIsGeneratingPdf(true);
-    
-    try {
-      // Create a new PDF document
-      const pdfDoc = await PDFDocument.create();
+      const doc = new jsPDF();
       
-      // Embed the default font
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      // Add title
+      doc.setFontSize(22);
+      doc.setTextColor(33, 33, 33);
+      doc.text(story.name, 20, 20);
       
-      // Add a page to the document
-      const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
-      const { width, height } = page.getSize();
+      // Add story type
+      if (story.story_type) {
+        doc.setFontSize(12);
+        doc.setTextColor(100, 100, 100);
+        const storyTypeText = `Tipo: ${getStoryTypeLabel(story.story_type as StoryType)}`;
+        doc.text(storyTypeText, 20, 30);
+      }
       
-      // Set some styles
-      const margin = 50;
-      const fontSize = 12;
-      const lineHeight = 1.5;
-      const titleFontSize = 24;
-      const subtitleFontSize = 16;
-      const smallFontSize = 10;
+      // Add description
+      if (story.description) {
+        doc.setFontSize(12);
+        doc.setTextColor(33, 33, 33);
+        const splitDescription = doc.splitTextToSize(story.description, 170);
+        doc.text(splitDescription, 20, 40);
+      }
       
-      // Draw the title
-      page.drawText('ConnectOS', {
-        x: margin,
-        y: height - margin,
-        size: 14,
-        font: boldFont,
-        color: rgb(0.2, 0.4, 0.6)
-      });
-      
-      page.drawText('A Alma Digital das Coisas', {
-        x: margin,
-        y: height - margin - 20,
-        size: 10,
-        font,
-        color: rgb(0.5, 0.5, 0.5)
-      });
-      
-      // Draw a line
-      page.drawLine({
-        start: { x: margin, y: height - margin - 40 },
-        end: { x: width - margin, y: height - margin - 40 },
-        thickness: 1,
-        color: rgb(0.8, 0.8, 0.8),
-      });
-      
-      // Draw the story title
-      page.drawText(story.name, {
-        x: margin,
-        y: height - margin - 80,
-        size: titleFontSize,
-        font: boldFont,
-        color: rgb(0, 0, 0)
-      });
-      
-      // Draw the story type badge
-      const storyTypeText = `Tipo: ${storyTypeLabels[story.story_type || 'outro'] || 'Outro'}`;
-      page.drawText(storyTypeText, {
-        x: margin,
-        y: height - margin - 110,
-        size: smallFontSize,
-        font,
-        color: rgb(0.5, 0.5, 0.5)
-      });
-      
-      // Draw the location if available
-      let locationY = height - margin - 130;
-      
+      // Add location if available
       if (story.location) {
         const locationParts = [
           story.location.city,
@@ -299,360 +207,284 @@ const StoryDetail = () => {
         ].filter(Boolean);
         
         if (locationParts.length > 0) {
-          const locationText = `Localização: ${locationParts.join(', ')}`;
-          page.drawText(locationText, {
-            x: margin,
-            y: locationY,
-            size: smallFontSize,
-            font,
-            color: rgb(0.5, 0.5, 0.5)
-          });
-          locationY -= 20;
+          doc.setFontSize(12);
+          doc.setTextColor(100, 100, 100);
+          doc.text(`Localização: ${locationParts.join(', ')}`, 20, 60);
         }
       }
       
-      // Draw the description
-      if (story.description) {
-        page.drawText('Descrição:', {
-          x: margin,
-          y: locationY,
-          size: subtitleFontSize,
-          font: boldFont,
-          color: rgb(0, 0, 0)
+      // Add timeline header
+      doc.setFontSize(16);
+      doc.setTextColor(33, 33, 33);
+      doc.text('Timeline', 20, 80);
+      
+      if (timelineRecords.length > 0) {
+        // Get data for table
+        const tableData = timelineRecords.map(record => [
+          record.date,
+          record.title,
+          record.description.substring(0, 60) + (record.description.length > 60 ? '...' : ''),
+          record.location ? [
+            record.location.city,
+            record.location.state,
+            record.location.country
+          ].filter(Boolean).join(', ') : ''
+        ]);
+        
+        // Add table
+        (doc as any).autoTable({
+          startY: 85,
+          head: [['Data', 'Título', 'Descrição', 'Localização']],
+          body: tableData,
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [41, 128, 185] },
+          alternateRowStyles: { fillColor: [240, 240, 240] }
         });
-        
-        // Split the description into lines for better formatting
-        const maxWidth = width - 2 * margin;
-        let currentLine = '';
-        let currentY = locationY - 25;
-        
-        for (const word of story.description.split(' ')) {
-          const testLine = currentLine + (currentLine ? ' ' : '') + word;
-          const lineWidth = font.widthOfTextAtSize(testLine, fontSize);
-          
-          if (lineWidth > maxWidth) {
-            // Draw the current line and start a new one
-            page.drawText(currentLine, {
-              x: margin,
-              y: currentY,
-              size: fontSize,
-              font,
-              color: rgb(0, 0, 0)
-            });
-            currentY -= fontSize * lineHeight;
-            currentLine = word;
-          } else {
-            currentLine = testLine;
-          }
-        }
-        
-        // Draw the last line of the description
-        if (currentLine) {
-          page.drawText(currentLine, {
-            x: margin,
-            y: currentY,
-            size: fontSize,
-            font,
-            color: rgb(0, 0, 0)
-          });
-          currentY -= fontSize * lineHeight * 2;
-        }
-        
-        // Draw the timeline title
-        page.drawText('Linha do Tempo', {
-          x: margin,
-          y: currentY,
-          size: subtitleFontSize,
-          font: boldFont,
-          color: rgb(0, 0, 0)
-        });
-        currentY -= 25;
-        
-        // Draw the records
-        for (const record of records) {
-          const recordDate = new Date(record.created_at).toLocaleDateString('pt-BR');
-          
-          page.drawText(`${recordDate} - ${record.title}`, {
-            x: margin + 10,
-            y: currentY,
-            size: fontSize,
-            font: boldFont,
-            color: rgb(0, 0, 0)
-          });
-          currentY -= fontSize * lineHeight;
-          
-          // Draw the record location if available
-          if (record.location) {
-            const recordLocationParts = [
-              record.location.city,
-              record.location.state,
-              record.location.country
-            ].filter(Boolean);
-            
-            if (recordLocationParts.length > 0) {
-              const recordLocationText = `Localização: ${recordLocationParts.join(', ')}`;
-              page.drawText(recordLocationText, {
-                x: margin + 10,
-                y: currentY,
-                size: smallFontSize,
-                font,
-                color: rgb(0.5, 0.5, 0.5)
-              });
-              currentY -= fontSize;
-            }
-          }
-          
-          // Draw the record description
-          if (record.description) {
-            // Split the record description into lines
-            let recordCurrentLine = '';
-            
-            for (const word of record.description.split(' ')) {
-              const testLine = recordCurrentLine + (recordCurrentLine ? ' ' : '') + word;
-              const lineWidth = font.widthOfTextAtSize(testLine, fontSize);
-              
-              if (lineWidth > maxWidth - 20) {
-                // Draw the current line and start a new one
-                page.drawText(recordCurrentLine, {
-                  x: margin + 10,
-                  y: currentY,
-                  size: fontSize,
-                  font,
-                  color: rgb(0, 0, 0)
-                });
-                currentY -= fontSize * lineHeight;
-                recordCurrentLine = word;
-              } else {
-                recordCurrentLine = testLine;
-              }
-            }
-            
-            // Draw the last line of the record description
-            if (recordCurrentLine) {
-              page.drawText(recordCurrentLine, {
-                x: margin + 10,
-                y: currentY,
-                size: fontSize,
-                font,
-                color: rgb(0, 0, 0)
-              });
-              currentY -= fontSize * lineHeight;
-            }
-          }
-          
-          // Add some space after each record
-          currentY -= fontSize * lineHeight;
-          
-          // Check if we need a new page
-          if (currentY < margin + 50) {
-            const newPage = pdfDoc.addPage([595.28, 841.89]);
-            currentY = height - margin;
-          }
-        }
+      } else {
+        doc.setFontSize(12);
+        doc.setTextColor(100, 100, 100);
+        doc.text('Nenhum registro encontrado para esta história.', 20, 90);
       }
       
-      // Add a footer
-      page.drawText(`Gerado por ConnectOS em ${new Date().toLocaleDateString('pt-BR')}`, {
-        x: margin,
-        y: margin / 2,
-        size: smallFontSize,
-        font,
-        color: rgb(0.5, 0.5, 0.5)
-      });
+      // Add footer
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      doc.setFontSize(10);
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setTextColor(150, 150, 150);
+        doc.text(
+          `Gerado por ConnectOS - A Alma Digital das Coisas em ${format(new Date(), 'dd/MM/yyyy')}`,
+          20,
+          doc.internal.pageSize.height - 10
+        );
+        doc.text(
+          `Página ${i} de ${pageCount}`,
+          doc.internal.pageSize.width - 40,
+          doc.internal.pageSize.height - 10
+        );
+      }
       
-      // Serialize the PDFDocument to bytes
-      const pdfBytes = await pdfDoc.save();
-      
-      // Create a Blob from the PDF bytes
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-      
-      // Create a temporary URL to the blob
-      const url = URL.createObjectURL(blob);
-      
-      // Open the PDF in a new tab
-      window.open(url, '_blank');
-      
-      // Create a download link and click it
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${story.name.replace(/\s+/g, '_')}_historia.pdf`;
-      link.click();
-      
-      // Clean up
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
-      }, 100);
+      // Save PDF
+      doc.save(`historia-${story.name.toLowerCase().replace(/\s+/g, '-')}.pdf`);
       
       toast({
         title: "PDF gerado com sucesso",
-        description: "A história foi exportada para PDF.",
+        description: "O arquivo PDF da história foi gerado e baixado.",
       });
-      
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({
         title: "Erro ao gerar PDF",
-        description: "Ocorreu um erro ao gerar o PDF da história.",
+        description: "Não foi possível gerar o arquivo PDF. Por favor, tente novamente.",
         variant: "destructive"
       });
-    } finally {
-      setIsGeneratingPdf(false);
     }
   };
-
-  if (isLoading) {
+  
+  const getStoryTypeLabel = (type: StoryType): string => {
+    const labels: Record<StoryType, string> = {
+      'objeto': 'Objeto',
+      'pessoa': 'Pessoa',
+      'espaço': 'Espaço',
+      'evento': 'Evento',
+      'outro': 'Outro'
+    };
+    return labels[type] || type;
+  };
+  
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
-        <main className="flex-1 flex items-center justify-center">
-          <p>Carregando detalhes da história...</p>
+        <main className="flex-1 py-8">
+          <div className="container max-w-4xl">
+            <Skeleton className="h-12 w-[200px] mb-4" />
+            <Skeleton className="h-4 w-[100px] mb-8" />
+            <Skeleton className="h-[200px] w-full mb-8" />
+            <Skeleton className="h-8 w-[150px] mb-4" />
+            <div className="space-y-4">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+          </div>
         </main>
         <Footer />
       </div>
     );
   }
-
+  
   if (!story) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center">
+        <main className="flex-1 py-16">
+          <div className="container text-center">
             <h1 className="text-2xl font-bold mb-4">História não encontrada</h1>
-            <Button onClick={() => navigate('/explore')}>Ver outras histórias</Button>
+            <p className="mb-8">A história que você está procurando não existe ou foi removida.</p>
+            <Button onClick={() => navigate('/explore')}>
+              Explorar histórias
+            </Button>
           </div>
         </main>
         <Footer />
       </div>
     );
   }
-
-  // Format records for the timeline component
-  const formattedRecords = records.map(record => ({
-    id: record.id,
-    date: new Date(record.created_at).toLocaleDateString('pt-BR'),
-    title: record.title,
-    description: record.description || "",
-    isPublic: record.is_public,
-    location: record.location as Location,
-    mediaFiles: record.media_files || []
-  }));
-
+  
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1">
-        <div className="container max-w-4xl py-8">
-          <Card className="overflow-hidden">
-            <div className={`${story.cover_image ? '' : 'bg-gradient-to-r from-connectos-100 to-connectos-50 dark:from-connectos-800 dark:to-connectos-700'}`}>
-              {story.cover_image && (
-                <div className="h-48 overflow-hidden relative">
-                  <img 
-                    src={story.cover_image} 
-                    alt={story.name} 
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                </div>
-              )}
-              
-              <div className="p-8">
-                <div className="flex flex-col md:flex-row justify-between gap-4">
-                  <div>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {story.story_type && (
-                        <Badge variant="secondary" className="flex items-center gap-1">
-                          <Tag size={12} />
-                          <span>{storyTypeLabels[story.story_type] || story.story_type}</span>
-                        </Badge>
-                      )}
-                      
-                      {story.is_public ? (
-                        <Badge variant="outline" className="flex items-center gap-1">
-                          <Globe size={12} />
-                          <span>Público</span>
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="flex items-center gap-1">
-                          <Lock size={12} />
-                          <span>Privado</span>
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    <h1 className="text-2xl font-bold">{story.name}</h1>
-                    <p className="text-muted-foreground mt-2">{story.description}</p>
-                    
-                    {story.location && (story.location.city || story.location.state || story.location.country) && (
-                      <div className="flex items-center text-sm text-muted-foreground mt-2">
-                        <MapPin size={14} className="mr-1" />
-                        <span>
-                          {[story.location.city, story.location.state, story.location.country].filter(Boolean).join(', ')}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-col gap-2 md:items-end">
-                    <p className="text-sm text-muted-foreground">
-                      Criado em {new Date(story.created_at).toLocaleDateString('pt-BR')}
-                    </p>
-                    <div className="flex gap-2 mt-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={generatePDF}
-                        disabled={isGeneratingPdf}
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        {isGeneratingPdf ? "Gerando..." : "Baixar PDF"}
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={shareStory}>
-                        <Share2 className="mr-2 h-4 w-4" />
-                        Compartilhar
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Edit className="mr-2 h-4 w-4" />
-                        Editar
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-2 mt-4">
-                      <div className="flex items-center">
-                        {story.is_public ? (
-                          <Globe className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <Lock className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <Label htmlFor="public-toggle" className="ml-2 cursor-pointer">
-                          {story.is_public ? "Público" : "Privado"}
-                        </Label>
-                      </div>
-                      <Switch 
-                        id="public-toggle" 
-                        checked={story.is_public} 
-                        onCheckedChange={toggleVisibility}
-                      />
-                    </div>
-                  </div>
+        {/* Hero section with cover image */}
+        {story.cover_image && (
+          <div className="relative h-[300px] overflow-hidden">
+            <img 
+              src={story.cover_image} 
+              alt={story.name} 
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+            <div className="absolute bottom-0 left-0 p-8 text-white">
+              <h1 className="text-3xl md:text-4xl font-bold mb-2">{story.name}</h1>
+              <div className="flex flex-wrap gap-2 items-center">
+                {story.story_type && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <TagIcon size={10} />
+                    <span>{getStoryTypeLabel(story.story_type as StoryType)}</span>
+                  </Badge>
+                )}
+                
+                {story.is_public ? (
+                  <Badge variant="outline" className="flex items-center gap-1 bg-white/20 text-white border-white/40">
+                    <Globe size={10} />
+                    <span>Público</span>
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="flex items-center gap-1 bg-white/20 text-white border-white/40">
+                    <Lock size={10} />
+                    <span>Privado</span>
+                  </Badge>
+                )}
+                
+                <div className="flex items-center gap-1 text-sm text-white/80">
+                  <Clock size={12} />
+                  <span>Criado em {format(new Date(story.created_at), 'dd/MM/yyyy')}</span>
                 </div>
               </div>
             </div>
-          </Card>
-        </div>
-        
-        {showRecordForm ? (
-          <div className="container max-w-4xl py-4">
-            <RecordForm 
-              onSubmit={handleSubmitRecord} 
-              onCancel={() => setShowRecordForm(false)} 
-            />
           </div>
-        ) : null}
+        )}
         
-        <StoryTimeline 
-          records={formattedRecords} 
-          onAddRecord={handleAddRecord} 
-        />
+        {/* Content section */}
+        <div className="container max-w-4xl py-8">
+          {/* If no cover image, show title here */}
+          {!story.cover_image && (
+            <div className="mb-8">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h1 className="text-3xl font-bold mb-2">{story.name}</h1>
+                  <div className="flex flex-wrap gap-2 items-center mb-4">
+                    {story.story_type && (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <TagIcon size={10} />
+                        <span>{getStoryTypeLabel(story.story_type as StoryType)}</span>
+                      </Badge>
+                    )}
+                    
+                    {story.is_public ? (
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <Globe size={10} />
+                        <span>Público</span>
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <Lock size={10} />
+                        <span>Privado</span>
+                      </Badge>
+                    )}
+                    
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Clock size={12} />
+                      <span>Criado em {format(new Date(story.created_at), 'dd/MM/yyyy')}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-1"
+                  onClick={generatePDF}
+                >
+                  <FileDown size={14} />
+                  <span>PDF</span>
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {/* Description and location */}
+          <div className="mb-8">
+            {story.description && (
+              <p className="text-muted-foreground mb-4">{story.description}</p>
+            )}
+            
+            {story.location && (story.location.city || story.location.state || story.location.country) && (
+              <div className="flex items-center text-sm text-muted-foreground mb-4">
+                <MapPin size={14} className="mr-1" />
+                <span>
+                  {[story.location.city, story.location.state, story.location.country]
+                    .filter(Boolean)
+                    .join(', ')}
+                </span>
+              </div>
+            )}
+          </div>
+          
+          {/* Add record button */}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">Timeline</h2>
+            
+            <div className="flex gap-2">
+              {story.cover_image && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-1"
+                  onClick={generatePDF}
+                >
+                  <FileDown size={14} />
+                  <span>PDF</span>
+                </Button>
+              )}
+              
+              <Button 
+                className="bg-connectos-400 hover:bg-connectos-500"
+                onClick={() => setShowNewRecordForm(!showNewRecordForm)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar registro
+              </Button>
+            </div>
+          </div>
+          
+          {/* New record form */}
+          {showNewRecordForm && (
+            <div className="mb-8">
+              <RecordForm 
+                onSubmit={handleAddRecord} 
+                onCancel={() => setShowNewRecordForm(false)} 
+              />
+            </div>
+          )}
+          
+          {/* Timeline */}
+          <StoryTimeline 
+            records={timelineRecords} 
+            onAddRecord={() => setShowNewRecordForm(true)} 
+          />
+        </div>
       </main>
       <Footer />
     </div>

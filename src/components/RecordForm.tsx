@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -129,12 +130,12 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSubmit, onCancel }) => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="state">Estado</Label>
+                  <Label htmlFor="state">Estado/Província/Região</Label>
                   <Input 
                     id="state" 
                     value={location.state || ''} 
                     onChange={(e) => setLocation({...location, state: e.target.value})} 
-                    placeholder="Estado"
+                    placeholder="Estado/Província/Região"
                   />
                 </div>
                 <div>

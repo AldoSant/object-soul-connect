@@ -1,401 +1,573 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import StoryCard from '@/components/StoryCard';
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { 
-  Pagination, 
-  PaginationContent, 
-  PaginationItem, 
-  PaginationLink, 
-  PaginationNext, 
-  PaginationPrevious
-} from "@/components/ui/pagination";
-import { Search, Filter, X, MapPin, Tag } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from "@/hooks/use-toast";
-import { Story, StoryType, jsonToLocation } from '@/types';
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import StoryCard from '@/components/StoryCard';
+import { supabase } from '@/integrations/supabase/client';
+import { type StoryType, jsonToLocation, Story } from '@/types';
+import { Filter, MapPin, Tag as TagIcon, Search, LibraryBig, Plus, Database } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
+import { v4 as uuidv4 } from 'uuid';
+
+type SortOption = 'recent' | 'alphabetical' | 'popularity';
+
+const STORY_TYPES: { value: StoryType | ''; label: string }[] = [
+  { value: '', label: 'Todos os tipos' },
+  { value: 'objeto', label: 'Objeto' },
+  { value: 'pessoa', label: 'Pessoa' },
+  { value: 'espaço', label: 'Espaço' },
+  { value: 'evento', label: 'Evento' },
+  { value: 'outro', label: 'Outro' },
+];
 
 const Explore = () => {
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
   const [stories, setStories] = useState<Story[]>([]);
   const [filteredStories, setFilteredStories] = useState<Story[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedType, setSelectedType] = useState<StoryType | "">("");
-  const [locationFilter, setLocationFilter] = useState("");
-  const storiesPerPage = 9; // 3x3 grid
-  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStoryType, setSelectedStoryType] = useState<'' | StoryType>('');
+  const [selectedLocation, setSelectedLocation] = useState('');
+  const [sortOption, setSortOption] = useState<SortOption>('recent');
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [numOfStoriesToGenerate, setNumOfStoriesToGenerate] = useState(20);
+
   useEffect(() => {
-    fetchStories();
+    loadStories();
   }, []);
 
-  const fetchStories = async () => {
-    setIsLoading(true);
+  useEffect(() => {
+    filterStories();
+  }, [stories, searchQuery, selectedStoryType, selectedLocation, sortOption]);
+
+  const loadStories = async () => {
+    setLoading(true);
     try {
-      // Fetch all public stories
-      const { data, error } = await supabase
+      // Get all objects
+      const { data: objects, error: objectsError } = await supabase
         .from('objects')
-        .select('*')
-        .eq('is_public', true)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      // For each story, count its records
-      if (data) {
-        const storiesWithRecordCount = await Promise.all(data.map(async (story) => {
-          const { count, error: countError } = await supabase
-            .from('records')
-            .select('*', { count: 'exact', head: true })
-            .eq('object_id', story.id);
-          
-          // Transform the data to match our Story interface
-          return {
-            ...story,
-            recordCount: count || 0,
-            location: jsonToLocation(story.location),
-            story_type: (story.story_type || 'objeto') as StoryType
-          } as Story;
-        }));
-        
-        setStories(storiesWithRecordCount);
-        setFilteredStories(storiesWithRecordCount);
-      }
+        .select('*');
+
+      if (objectsError) throw objectsError;
+
+      // Count records for each object
+      const { data: counts, error: countsError } = await supabase
+        .from('records')
+        .select('object_id, count(*)')
+        .group('object_id');
+
+      if (countsError) throw countsError;
+
+      // Create a map of object_id to record count
+      const countMap = (counts || []).reduce((acc, curr) => {
+        acc[curr.object_id] = curr.count;
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Map objects to stories with record counts
+      const storiesData = (objects || []).map(obj => ({
+        ...obj,
+        recordCount: countMap[obj.id] || 0,
+        location: jsonToLocation(obj.location)
+      })) as Story[];
+
+      setStories(storiesData);
     } catch (error) {
-      console.error('Error fetching stories:', error);
+      console.error('Error loading stories:', error);
       toast({
         title: "Erro ao carregar histórias",
-        description: "Não foi possível carregar a lista de histórias. Por favor, tente novamente.",
+        description: "Não foi possível buscar as histórias. Por favor, tente novamente.",
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-  
-  const applyFilters = () => {
+
+  const filterStories = () => {
     let filtered = [...stories];
-    
-    // Apply search query
-    if (searchQuery.trim()) {
+
+    // Apply search filter
+    if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(story => 
-        story.name.toLowerCase().includes(query) || 
+      filtered = filtered.filter(story =>
+        story.name.toLowerCase().includes(query) ||
         (story.description && story.description.toLowerCase().includes(query))
       );
     }
-    
+
     // Apply story type filter
-    if (selectedType) {
-      filtered = filtered.filter(story => story.story_type === selectedType);
+    if (selectedStoryType) {
+      filtered = filtered.filter(story => story.story_type === selectedStoryType);
     }
-    
+
     // Apply location filter
-    if (locationFilter.trim()) {
-      const locationQuery = locationFilter.toLowerCase();
+    if (selectedLocation) {
       filtered = filtered.filter(story => {
         if (!story.location) return false;
         
-        const locationString = JSON.stringify(story.location).toLowerCase();
-        return locationString.includes(locationQuery);
+        const locationStr = [
+          story.location.city,
+          story.location.state,
+          story.location.country
+        ].filter(Boolean).join(', ').toLowerCase();
+        
+        return locationStr.includes(selectedLocation.toLowerCase());
       });
     }
-    
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      if (sortOption === 'alphabetical') {
+        return a.name.localeCompare(b.name);
+      } else if (sortOption === 'popularity') {
+        return (b.recordCount || 0) - (a.recordCount || 0);
+      } else {
+        // Default 'recent'
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      }
+    });
+
     setFilteredStories(filtered);
-    setCurrentPage(1);
   };
-  
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    applyFilters();
-  };
-  
+
   const clearFilters = () => {
-    setSearchQuery("");
-    setSelectedType("");
-    setLocationFilter("");
-    setFilteredStories(stories);
-    setCurrentPage(1);
+    setSearchQuery('');
+    setSelectedStoryType('');
+    setSelectedLocation('');
+    setSortOption('recent');
   };
+
+  const storyTypes = [...new Set(stories.map(s => s.story_type).filter(Boolean))];
   
-  // Pagination logic
-  const totalPages = Math.ceil(filteredStories.length / storiesPerPage);
-  const indexOfLastStory = currentPage * storiesPerPage;
-  const indexOfFirstStory = indexOfLastStory - storiesPerPage;
-  const currentStories = filteredStories.slice(indexOfFirstStory, indexOfLastStory);
-  
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-  
-  const renderPaginationItems = () => {
-    const pages = [];
-    
-    // Always show first page
-    pages.push(
-      <PaginationItem key="first">
-        <PaginationLink 
-          isActive={currentPage === 1} 
-          onClick={() => paginate(1)}
-        >
-          1
-        </PaginationLink>
-      </PaginationItem>
-    );
-    
-    // If there are many pages, use ellipsis
-    if (currentPage > 3) {
-      pages.push(
-        <PaginationItem key="ellipsis1">
-          <span className="flex h-9 w-9 items-center justify-center">...</span>
-        </PaginationItem>
-      );
-    }
-    
-    // Show pages around current page
-    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
-      if (i === 1 || i === totalPages) continue; // Skip first and last as they're always shown
+  const locations = stories
+    .filter(s => s.location)
+    .map(s => {
+      if (!s.location) return [];
       
-      pages.push(
-        <PaginationItem key={i}>
-          <PaginationLink 
-            isActive={currentPage === i} 
-            onClick={() => paginate(i)}
-          >
-            {i}
-          </PaginationLink>
-        </PaginationItem>
-      );
-    }
+      return [
+        s.location.city,
+        s.location.state,
+        s.location.country
+      ].filter(Boolean);
+    })
+    .flat()
+    .filter((v, i, a) => v && a.indexOf(v) === i)
+    .sort();
+
+  // Function to generate sample stories
+  const generateSampleStories = async () => {
+    setIsGenerating(true);
     
-    // If there are many pages, use ellipsis
-    if (currentPage < totalPages - 2) {
-      pages.push(
-        <PaginationItem key="ellipsis2">
-          <span className="flex h-9 w-9 items-center justify-center">...</span>
-        </PaginationItem>
-      );
+    try {
+      const sampleNames = [
+        "Violão Gibson J-45", "Câmera Leica M6", "Relógio Rolex Submariner",
+        "Mesa de Jantar Vitoriana", "Piano Steinway", "Antiga Máquina de Escrever Remington",
+        "Cadeira Eames Lounge", "Baú de Viagem Louis Vuitton", "Bicicleta Peugeot Vintage",
+        "Anel de Diamante Tiffany", "Vinil Original dos Beatles", "Livro Primeira Edição de Dom Quixote",
+        "Telescópio Celestron", "Boneca de Porcelana Francesa", "Espada Samurai Antiga",
+        "Mapa-múndi do Século XVIII", "Escultura Modernista", "Caneta Montblanc Meisterstück",
+        "Xícara de Chá de Porcelana Chinesa", "Despertador Art Déco", "Colar de Pérolas Mikimoto",
+        "Botas de Cowboy Tony Lama", "Quadro Impressionista", "Faca de Chef Japonesa",
+        "Álbum de Fotos de Família", "Máquina de Café Italiana", "Rádio Zenith Vintage",
+        "Vaso Murano", "Tapete Persa", "Globo Terrestre Antigo",
+        "Conjunto de Chá de Prata", "Urso de Pelúcia da Infância", "Brinquedo Lego Raro",
+        "Lustre de Cristal", "Kimono de Seda Japonês", "Caixa de Música Antiga",
+        "Bandeira Histórica", "Moeda Rara de Ouro", "Instrumento Musical Exótico",
+        "Ábaco Chinês", "Capacete de Guerra Medieval", "Telefone Rotativo Antigo",
+        "Pente de Tartaruga Art Nouveau", "Harpa Celtic", "Ampulheta Veneziana",
+        "Microscópio de Latão", "Caixa de Ferramentas do Avô", "Sextante Náutico",
+        "Gramofone Antigo", "Bússola de Navegação", "Martelo Cerimonial",
+        "Vestido de Noiva da Avó", "Escrivaninha Chippendale", "Bule Marroquino",
+        "Armadura Japonesa", "Tinteiro Vitoriano", "Leque Oriental",
+        "Broche Art Deco", "Jogo de Xadrez de Jade", "Espelho Veneziano",
+        "Uniforme Militar Histórico", "Medalha Olímpica", "Baralho de Tarô Antigo",
+        "Troféu Esportivo", "Calculadora Mecânica", "Máscaras Tribais",
+        "Pulseira Berbere", "Flauta Nativa Americana", "Fóssil Raro",
+        "Meteorito", "Cristal Raro", "Conchas Marinhas Raras",
+        "Brinquedo de Lata Vintage", "Ferradura da Sorte", "Âncora de Navio",
+        "Pedras do Muro de Berlim", "Tijolo da Grande Muralha da China", "Artefato Arqueológico",
+        "Pintura Rupestre Reproduzida", "Primeiro Computador Pessoal", "Prensa Tipográfica",
+        "Luneta Antiga", "Tear Manual", "Manto Cerimonial",
+        "Carrinho de Bebê Antigo", "Serviço de Jantar de Porcelana", "Conjunto de Ferramentas de Jardim",
+        "Balança Antiga", "Cofre de Aço", "Algemas Antigas",
+        "Estatueta de Bronze", "Narguilé Otomano", "Sabre Árabe",
+        "Pipas Chinesas", "Kit de Caligrafia", "Astrolábio",
+        "Lamparina a Óleo", "Leitor de Microficha", "Filmadora Super 8",
+        "Disco de Vinil", "Projetor de Slides", "Walkman Original",
+        "Primeiro Modelo de iPhone", "Nintendo Game Boy", "Atari 2600",
+        "PlayStation Original", "Commodore 64", "Máquina de Costura Singer",
+        "Casaco de Pele Vintage", "Chapéu Fedora Clássico", "Luvas de Boxe Antigas",
+        "Troféu da Copa do Mundo", "Raquete de Tênis Histórica", "Bastão de Baseball Autografado",
+        "Ingresso da Copa de 70", "Poster dos Jogos Olímpicos de 1936", "Mapa Estelar",
+        "Criptex de Madeira", "Fichário de Bibliotecário", "Mala-Biblioteca",
+        "Livro de Receitas da Avó", "Álbum de Selos", "Coleção de Botões",
+        "Moedas de Todo o Mundo", "Cadernos de Viagem", "Diário Antigo",
+        "Cadeado Ornamentado", "Instrumento Cirúrgico Antigo", "Ferramentas de Relojoeiro",
+        "Kit de Química Vintage", "Barco em Miniatura", "Cachimbo Esculpido",
+        "Alfinete de Gravata Vitoriano", "Pandeiro de Pastor", "Chaves de Porta Antigas",
+        "Cinzeiro Art Déco", "Lanterna Coleman", "Cantil Militar",
+        "Sela de Cavalo", "Espelho de Mão de Prata", "Binóculos de Ópera",
+        "Chaveiro Especial", "Gaiola de Pássaro Decorativa", "Incensário de Bronze",
+        "Colar Tribal", "Carrinho de Miniatura", "Relíquia Familiar",
+        "Bandeira da Primeira Viagem", "Medalha de Reconhecimento", "Cartões Postais Antigos",
+        "Conjunto de Canetas-Tinteiro", "Gravador de Fita", "Protetor de Tela de TV",
+        "Primeiro Telefone Celular", "Livro Autografado por Celebridade", "Pôster de Filme Clássico",
+        "Cartaz de Propaganda Vintage", "Jogo de Tabuleiro Antigo", "Brinquedo de Infância",
+        "Primeiro Instrumento Musical", "Máquina Fotográfica Kodak", "Lancheira Escolar Vintage"
+      ];
+      
+      const sampleDescriptions = [
+        "Adquirido em uma pequena loja em Paris durante uma viagem inesquecível.",
+        "Herança de família que passou por gerações, carregando histórias e memórias.",
+        "Um presente especial que marcou um momento importante da minha vida.",
+        "Encontrado por acaso em um mercado de antiguidades em uma cidade pequena.",
+        "Companheiro de inúmeras aventuras e momentos significativos.",
+        "Um objeto que testemunhou a transformação de uma época para outra.",
+        "Peça rara que representa um período importante da história.",
+        "Tesouro pessoal que simboliza uma conquista significativa.",
+        "Item que conecta o passado ao presente através de suas histórias.",
+        "Objeto de admiração que inspirou muitas conversas e reflexões.",
+        "Relíquia que sobreviveu a momentos difíceis e guarda muitas histórias.",
+        "Artefato que traz à tona memórias de pessoas e lugares especiais.",
+        "Peça singular que reflete um estilo de vida e uma época.",
+        "Item que acompanhou jornadas e aventuras pelo mundo.",
+        "Objeto que representa uma paixão cultivada ao longo dos anos.",
+        "Criação artesanal que carrega a essência de quem a produziu.",
+        "Símbolo de um momento histórico que transformou trajetórias.",
+        "Peça que preserva técnicas tradicionais quase esquecidas.",
+        "Item que conecta gerações através de histórias e significados.",
+        "Objeto de contemplação que inspira novas ideias e perspectivas.",
+        "Relíquia que carrega em si a essência de uma cultura distante.",
+        "Peça que testemunhou momentos de transformação pessoal.",
+        "Artefato que sobreviveu ao tempo e preserva memórias preciosas.",
+        "Item que representa uma busca por conhecimento e descobertas.",
+        "Objeto que simboliza valores e princípios importantes.",
+      ];
+      
+      const cities = [
+        "Paris", "Nova York", "Tóquio", "Londres", "Roma", "Cairo", "Sydney",
+        "Berlim", "Cidade do México", "São Paulo", "Mumbai", "Pequim", "Moscou",
+        "Istambul", "Marraquexe", "Lisboa", "Buenos Aires", "Amsterdam", "Kyoto",
+        "Barcelona", "Praga", "Budapeste", "Cidade do Cabo", "Veneza", "Viena",
+        "Bangkok", "Jerusalém", "Rio de Janeiro", "Dublin", "Helsinki"
+      ];
+      
+      const countries = [
+        "França", "Estados Unidos", "Japão", "Reino Unido", "Itália", "Egito", 
+        "Austrália", "Alemanha", "México", "Brasil", "Índia", "China", "Rússia",
+        "Turquia", "Marrocos", "Portugal", "Argentina", "Holanda", "Espanha",
+        "República Tcheca", "Hungria", "África do Sul", "Tailândia", "Israel", 
+        "Irlanda", "Finlândia", "Grécia", "Peru", "Canadá", "Noruega"
+      ];
+      
+      const storyTypes: StoryType[] = ["objeto", "pessoa", "espaço", "evento", "outro"];
+      
+      // Generate stories
+      const stories = [];
+      
+      for (let i = 0; i < numOfStoriesToGenerate; i++) {
+        const randomNameIndex = Math.floor(Math.random() * sampleNames.length);
+        const randomDescIndex = Math.floor(Math.random() * sampleDescriptions.length);
+        const randomCityIndex = Math.floor(Math.random() * cities.length);
+        const randomStateIndex = Math.floor(Math.random() * 10); // Some will have state, some won't
+        const randomCountryIndex = Math.floor(Math.random() * countries.length);
+        const randomStoryTypeIndex = Math.floor(Math.random() * storyTypes.length);
+        
+        const hasLocation = Math.random() > 0.3; // 70% chance to have location
+        
+        const location = hasLocation ? {
+          city: cities[randomCityIndex],
+          state: randomStateIndex < 7 ? `Estado de ${cities[randomCityIndex]}` : "",
+          country: countries[randomCountryIndex]
+        } : null;
+        
+        // Random dates in the last year
+        const createdAt = new Date();
+        createdAt.setDate(createdAt.getDate() - Math.floor(Math.random() * 365));
+        
+        const updatedAt = new Date(createdAt);
+        updatedAt.setDate(updatedAt.getDate() + Math.floor(Math.random() * (new Date().getDate() - createdAt.getDate())));
+        
+        // Sometimes have cover images and thumbnails (30% chance)
+        const hasCoverImage = Math.random() > 0.7;
+        const hasThumbnail = Math.random() > 0.7;
+        
+        const coverImageNumber = Math.floor(Math.random() * 30) + 1;
+        const thumbnailNumber = Math.floor(Math.random() * 30) + 1;
+        
+        stories.push({
+          id: uuidv4(),
+          name: sampleNames[randomNameIndex],
+          description: sampleDescriptions[randomDescIndex],
+          is_public: Math.random() > 0.2, // 80% chance to be public
+          story_type: storyTypes[randomStoryTypeIndex],
+          location: location,
+          cover_image: hasCoverImage ? `https://source.unsplash.com/random/800x600?sig=${coverImageNumber}` : null,
+          thumbnail: hasThumbnail ? `https://source.unsplash.com/random/400x300?sig=${thumbnailNumber}` : null,
+          created_at: createdAt.toISOString(),
+          updated_at: updatedAt.toISOString()
+        });
+        
+        // Remove used name to avoid duplicates
+        sampleNames.splice(randomNameIndex, 1);
+        if (sampleNames.length === 0) break;
+      }
+      
+      // Insert stories in batches to avoid hitting API limits
+      const batchSize = 10;
+      for (let i = 0; i < stories.length; i += batchSize) {
+        const batch = stories.slice(i, i + batchSize);
+        
+        // Insert stories
+        const { error } = await supabase.from('objects').insert(
+          batch.map(story => ({
+            name: story.name,
+            description: story.description,
+            is_public: story.is_public,
+            story_type: story.story_type,
+            location: story.location,
+            cover_image: story.cover_image,
+            thumbnail: story.thumbnail,
+            created_at: story.created_at,
+            updated_at: story.updated_at
+          }))
+        );
+        
+        if (error) throw error;
+        
+        // Add a small delay between batches
+        if (i + batchSize < stories.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      
+      toast({
+        title: "Histórias geradas com sucesso!",
+        description: `${stories.length} novas histórias foram adicionadas ao banco de dados.`,
+      });
+      
+      // Reload stories
+      await loadStories();
+    } catch (error) {
+      console.error('Error generating sample stories:', error);
+      toast({
+        title: "Erro ao gerar histórias",
+        description: "Ocorreu um erro ao gerar histórias de exemplo. Por favor, tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+      setShowGenerateDialog(false);
     }
-    
-    // Always show last page if more than 1 page
-    if (totalPages > 1) {
-      pages.push(
-        <PaginationItem key="last">
-          <PaginationLink 
-            isActive={currentPage === totalPages} 
-            onClick={() => paginate(totalPages)}
-          >
-            {totalPages}
-          </PaginationLink>
-        </PaginationItem>
-      );
-    }
-    
-    return pages;
   };
-  
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1 py-8">
+      <main className="flex-1 py-8 bg-gradient-to-b from-connectos-50/30 to-transparent">
         <div className="container">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-connectos-700">Explorar histórias</h1>
-              <p className="text-muted-foreground mt-1">Descubra histórias compartilhadas publicamente</p>
-            </div>
-            
-            <form onSubmit={handleSearch} className="w-full md:w-auto">
-              <div className="relative flex items-center">
-                <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Buscar histórias..."
-                  className="pl-9 pr-12 w-full md:w-64"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <Button 
-                    type="button"
-                    variant="ghost" 
-                    size="icon" 
-                    className="absolute right-12 h-full"
-                    onClick={() => {
-                      setSearchQuery("");
-                      applyFilters();
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-                <Button type="submit" className="rounded-l-none absolute right-0 bg-connectos-400 hover:bg-connectos-500">
-                  Buscar
-                </Button>
-              </div>
-            </form>
+          <div className="mb-8 flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-connectos-700">Explorar histórias</h1>
+            <Badge variant="secondary" className="gap-1">
+              <LibraryBig size={16} />
+              <span>{stories.length} histórias</span>
+            </Badge>
           </div>
           
-          <div className="mb-6 flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">
-              {isLoading ? "Carregando histórias..." : `${filteredStories.length} histórias encontradas`}
-            </p>
-            
-            <Drawer>
-              <DrawerTrigger asChild>
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  <span>Filtrar</span>
-                </Button>
-              </DrawerTrigger>
-              <DrawerContent>
-                <div className="mx-auto w-full max-w-sm">
-                  <DrawerHeader>
-                    <DrawerTitle>Filtrar histórias</DrawerTitle>
-                    <DrawerDescription>
-                      Aplique filtros para encontrar histórias específicas
-                    </DrawerDescription>
-                  </DrawerHeader>
-                  <div className="p-4 pb-0">
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-sm font-medium">Tipo de história</Label>
-                        <RadioGroup 
-                          value={selectedType} 
-                          onValueChange={(value) => setSelectedType(value as StoryType | "")}
-                          className="grid grid-cols-2 gap-2 mt-2"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="" id="todos" />
-                            <Label htmlFor="todos">Todos</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="objeto" id="filter-objeto" />
-                            <Label htmlFor="filter-objeto">Objeto</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="pessoa" id="filter-pessoa" />
-                            <Label htmlFor="filter-pessoa">Pessoa</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="espaço" id="filter-espaco" />
-                            <Label htmlFor="filter-espaco">Espaço</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="evento" id="filter-evento" />
-                            <Label htmlFor="filter-evento">Evento</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="outro" id="filter-outro" />
-                            <Label htmlFor="filter-outro">Outro</Label>
-                          </div>
-                        </RadioGroup>
-                      </div>
-                      
-                      <Separator />
-                      
-                      <div>
-                        <Label htmlFor="location" className="text-sm font-medium">Localização</Label>
-                        <div className="flex items-center mt-2">
-                          <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+          <Card className="mb-8">
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="col-span-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar histórias..."
+                      className="pl-10"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Select
+                      value={sortOption}
+                      onValueChange={(value) => setSortOption(value as SortOption)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Ordenar por" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="recent">Mais recentes</SelectItem>
+                        <SelectItem value="alphabetical">Ordem alfabética</SelectItem>
+                        <SelectItem value="popularity">Mais populares</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="flex gap-1 items-center">
+                        <Database className="h-4 w-4" />
+                        <span className="hidden sm:inline">Gerar</span>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Gerar histórias de exemplo</DialogTitle>
+                        <DialogDescription>
+                          Crie um conjunto de histórias de exemplo para popular o banco de dados.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="numOfStories">Número de histórias a gerar</Label>
                           <Input
-                            id="location"
-                            placeholder="Cidade, estado ou país..."
-                            value={locationFilter}
-                            onChange={(e) => setLocationFilter(e.target.value)}
+                            id="numOfStories"
+                            type="number"
+                            value={numOfStoriesToGenerate}
+                            onChange={(e) => setNumOfStoriesToGenerate(parseInt(e.target.value) || 20)}
+                            min={1}
+                            max={100}
                           />
                         </div>
                       </div>
-                    </div>
-                  </div>
-                  <DrawerFooter>
-                    <Button onClick={applyFilters} className="bg-connectos-400 hover:bg-connectos-500">
-                      Aplicar filtros
-                    </Button>
-                    <Button variant="outline" onClick={clearFilters}>
-                      Limpar filtros
-                    </Button>
-                    <DrawerClose asChild>
-                      <Button variant="outline">Cancelar</Button>
-                    </DrawerClose>
-                  </DrawerFooter>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowGenerateDialog(false)}>Cancelar</Button>
+                        <Button onClick={generateSampleStories} disabled={isGenerating}>
+                          {isGenerating ? "Gerando..." : "Gerar histórias"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                  
+                  <Button
+                    variant="default"
+                    onClick={() => navigate('/story/new')}
+                    className="bg-connectos-400 hover:bg-connectos-500"
+                  >
+                    <Plus className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Nova história</span>
+                  </Button>
                 </div>
-              </DrawerContent>
-            </Drawer>
-          </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-2 mt-4">
+                <div className="flex items-center mr-2">
+                  <Filter className="h-4 w-4 mr-1 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Filtros:</span>
+                </div>
+                
+                <Select
+                  value={selectedStoryType}
+                  onValueChange={(value) => setSelectedStoryType(value as '' | StoryType)}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <TagIcon className="h-3 w-3 mr-1" />
+                    <SelectValue placeholder="Tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STORY_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select
+                  value={selectedLocation}
+                  onValueChange={setSelectedLocation}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    <SelectValue placeholder="Localização" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todas as localizações</SelectItem>
+                    {locations.map((loc) => (
+                      <SelectItem key={loc} value={loc}>
+                        {loc}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {(searchQuery || selectedStoryType || selectedLocation) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={clearFilters}
+                  >
+                    Limpar filtros
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
           
-          {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="h-64 bg-gray-100 animate-pulse rounded-lg"></div>
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-connectos-400"></div>
+            </div>
+          ) : filteredStories.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {filteredStories.map((story) => (
+                <StoryCard
+                  key={story.id}
+                  id={story.id}
+                  name={story.name}
+                  description={story.description || ''}
+                  lastUpdated={format(new Date(story.updated_at), 'dd/MM/yyyy')}
+                  isPublic={story.is_public || false}
+                  recordCount={story.recordCount || 0}
+                  storyType={story.story_type || undefined}
+                  location={story.location || undefined}
+                  thumbnailUrl={story.thumbnail || undefined}
+                />
               ))}
             </div>
           ) : (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {currentStories.map((story) => (
-                  <StoryCard 
-                    key={story.id}
-                    id={story.id}
-                    name={story.name}
-                    description={story.description || ""}
-                    lastUpdated={new Date(story.updated_at).toLocaleDateString('pt-BR')}
-                    isPublic={Boolean(story.is_public)}
-                    recordCount={story.recordCount || 0}
-                    storyType={story.story_type as StoryType}
-                    location={story.location}
-                    thumbnailUrl={story.thumbnail}
-                  />
-                ))}
-              </div>
-              
-              {totalPages > 1 && (
-                <Pagination className="my-10">
-                  <PaginationContent>
-                    {currentPage > 1 && (
-                      <PaginationItem>
-                        <PaginationPrevious onClick={() => paginate(currentPage - 1)} />
-                      </PaginationItem>
-                    )}
-                    
-                    {renderPaginationItems()}
-                    
-                    {currentPage < totalPages && (
-                      <PaginationItem>
-                        <PaginationNext onClick={() => paginate(currentPage + 1)} />
-                      </PaginationItem>
-                    )}
-                  </PaginationContent>
-                </Pagination>
-              )}
-            </>
-          )}
-          
-          {!isLoading && filteredStories.length === 0 && (
             <div className="text-center py-12">
-              <h3 className="text-lg font-medium">Nenhuma história encontrada</h3>
-              <p className="text-muted-foreground mt-1">Tente uma busca diferente ou explore outros termos</p>
-              <Button 
-                variant="outline" 
-                className="mt-4"
-                onClick={clearFilters}
-              >
-                Ver todas as histórias
+              <LibraryBig className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">Nenhuma história encontrada</h3>
+              <p className="text-muted-foreground mb-6">
+                {searchQuery || selectedStoryType || selectedLocation
+                  ? "Tente ajustar seus filtros ou criar uma nova história."
+                  : "Comece criando sua primeira história digital."}
+              </p>
+              <Button asChild className="bg-connectos-400 hover:bg-connectos-500">
+                <Link to="/story/new">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Criar nova história
+                </Link>
               </Button>
             </div>
           )}
