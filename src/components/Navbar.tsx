@@ -25,9 +25,9 @@ const Navbar: React.FC = () => {
         </div>
         <div className="flex items-center gap-4">
           <Button asChild variant="default" size="sm" className="bg-connectos-400 hover:bg-connectos-500">
-            <Link to="/object/new">
+            <Link to="/story/new">
               <PlusCircle className="mr-2 h-4 w-4" />
-              <span>Add Object</span>
+              <span>Nova História</span>
             </Link>
           </Button>
         </div>

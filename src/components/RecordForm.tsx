@@ -6,25 +6,16 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { X } from 'lucide-react';
+import { X, MapPin } from 'lucide-react';
 import MediaUpload from './MediaUpload';
-
-interface MediaFile {
-  id: string;
-  url: string;
-  type: 'image' | 'audio' | 'video';
-  name: string;
-  file?: File;
-  preview?: string;
-  uploading?: boolean;
-  uploaded?: boolean;
-}
+import { MediaFile, Location } from '@/types';
 
 interface RecordFormProps {
   onSubmit: (record: { 
     title: string; 
     description: string; 
     isPublic: boolean;
+    location: Location | null;
     mediaFiles: MediaFile[];
   }) => void;
   onCancel: () => void;
@@ -36,6 +27,12 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSubmit, onCancel }) => {
   const [isPublic, setIsPublic] = useState(true);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showLocation, setShowLocation] = useState(false);
+  const [location, setLocation] = useState<Location>({
+    city: '',
+    state: '',
+    country: ''
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,10 +50,18 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSubmit, onCancel }) => {
       id, url, type, name
     }));
     
+    // Clean up location - if not showing location or all fields are empty, set to null
+    const cleanLocation = !showLocation || (
+      !location.city?.trim() && 
+      !location.state?.trim() && 
+      !location.country?.trim()
+    ) ? null : location;
+    
     onSubmit({ 
       title, 
       description, 
       isPublic,
+      location: cleanLocation,
       mediaFiles: cleanMediaFiles
     });
     
@@ -95,6 +100,51 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSubmit, onCancel }) => {
               placeholder="Escreva os detalhes do registro..." 
               rows={4}
             />
+          </div>
+          
+          <div>
+            <div className="flex items-center mb-2">
+              <MapPin className="h-4 w-4 mr-2 text-connectos-400" />
+              <Label htmlFor="showLocation" className="cursor-pointer">Adicionar localização</Label>
+              <Switch 
+                id="showLocation" 
+                className="ml-auto"
+                checked={showLocation} 
+                onCheckedChange={setShowLocation}
+              />
+            </div>
+            
+            {showLocation && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2 p-4 border rounded-md bg-gray-50 dark:bg-gray-800">
+                <div>
+                  <Label htmlFor="city">Cidade</Label>
+                  <Input 
+                    id="city" 
+                    value={location.city || ''} 
+                    onChange={(e) => setLocation({...location, city: e.target.value})} 
+                    placeholder="Cidade"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="state">Estado</Label>
+                  <Input 
+                    id="state" 
+                    value={location.state || ''} 
+                    onChange={(e) => setLocation({...location, state: e.target.value})} 
+                    placeholder="Estado"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="country">País</Label>
+                  <Input 
+                    id="country" 
+                    value={location.country || ''} 
+                    onChange={(e) => setLocation({...location, country: e.target.value})} 
+                    placeholder="País"
+                  />
+                </div>
+              </div>
+            )}
           </div>
           
           <MediaUpload

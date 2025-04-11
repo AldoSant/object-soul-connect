@@ -11,27 +11,39 @@ export type Database = {
     Tables: {
       objects: {
         Row: {
+          cover_image: string | null
           created_at: string
           description: string | null
           id: string
           is_public: boolean | null
+          location: Json | null
           name: string
+          story_type: string | null
+          thumbnail: string | null
           updated_at: string
         }
         Insert: {
+          cover_image?: string | null
           created_at?: string
           description?: string | null
           id?: string
           is_public?: boolean | null
+          location?: Json | null
           name: string
+          story_type?: string | null
+          thumbnail?: string | null
           updated_at?: string
         }
         Update: {
+          cover_image?: string | null
           created_at?: string
           description?: string | null
           id?: string
           is_public?: boolean | null
+          location?: Json | null
           name?: string
+          story_type?: string | null
+          thumbnail?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -42,6 +54,7 @@ export type Database = {
           description: string | null
           id: string
           is_public: boolean | null
+          location: Json | null
           media_files: Json | null
           object_id: string
           title: string
@@ -51,6 +64,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_public?: boolean | null
+          location?: Json | null
           media_files?: Json | null
           object_id: string
           title: string
@@ -60,6 +74,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_public?: boolean | null
+          location?: Json | null
           media_files?: Json | null
           object_id?: string
           title?: string

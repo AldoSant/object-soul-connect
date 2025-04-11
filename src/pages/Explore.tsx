@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import ObjectCard from '@/components/ObjectCard';
+import StoryCard from '@/components/StoryCard';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   Pagination, 
   PaginationContent, 
@@ -13,38 +13,42 @@ import {
   PaginationNext, 
   PaginationPrevious
 } from "@/components/ui/pagination";
-import { Search, Filter, X } from 'lucide-react';
+import { Search, Filter, X, MapPin, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/hooks/use-toast";
-
-// Define the object type
-interface ObjectType {
-  id: string;
-  name: string;
-  description: string | null;
-  is_public: boolean | null;
-  created_at: string;
-  updated_at: string;
-  recordCount?: number;
-}
+import { Story, StoryType } from '@/types';
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 
 const Explore = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [objects, setObjects] = useState<ObjectType[]>([]);
-  const [filteredObjects, setFilteredObjects] = useState<ObjectType[]>([]);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [filteredStories, setFilteredStories] = useState<Story[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const objectsPerPage = 9; // 3x3 grid
+  const [selectedType, setSelectedType] = useState<StoryType | "">("");
+  const [locationFilter, setLocationFilter] = useState("");
+  const storiesPerPage = 9; // 3x3 grid
   
   useEffect(() => {
-    fetchObjects();
+    fetchStories();
   }, []);
-  
-  const fetchObjects = async () => {
+
+  const fetchStories = async () => {
     setIsLoading(true);
     try {
-      // Fetch all public objects
+      // Fetch all public stories
       const { data, error } = await supabase
         .from('objects')
         .select('*')
@@ -53,28 +57,28 @@ const Explore = () => {
       
       if (error) throw error;
       
-      // For each object, count its records
+      // For each story, count its records
       if (data) {
-        const objectsWithRecordCount = await Promise.all(data.map(async (obj) => {
+        const storiesWithRecordCount = await Promise.all(data.map(async (story) => {
           const { count, error: countError } = await supabase
             .from('records')
             .select('*', { count: 'exact', head: true })
-            .eq('object_id', obj.id);
+            .eq('object_id', story.id);
           
           return {
-            ...obj,
+            ...story,
             recordCount: count || 0
           };
         }));
         
-        setObjects(objectsWithRecordCount);
-        setFilteredObjects(objectsWithRecordCount);
+        setStories(storiesWithRecordCount);
+        setFilteredStories(storiesWithRecordCount);
       }
     } catch (error) {
-      console.error('Error fetching objects:', error);
+      console.error('Error fetching stories:', error);
       toast({
-        title: "Erro ao carregar objetos",
-        description: "Não foi possível carregar a lista de objetos. Por favor, tente novamente.",
+        title: "Erro ao carregar histórias",
+        description: "Não foi possível carregar a lista de histórias. Por favor, tente novamente.",
         variant: "destructive"
       });
     } finally {
@@ -82,30 +86,56 @@ const Explore = () => {
     }
   };
   
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
+  const applyFilters = () => {
+    let filtered = [...stories];
+    
+    // Apply search query
     if (searchQuery.trim()) {
-      const filtered = objects.filter(obj => 
-        obj.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        (obj.description && obj.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(story => 
+        story.name.toLowerCase().includes(query) || 
+        (story.description && story.description.toLowerCase().includes(query))
       );
-      setFilteredObjects(filtered);
-      setCurrentPage(1);
-    } else {
-      setFilteredObjects(objects);
     }
+    
+    // Apply story type filter
+    if (selectedType) {
+      filtered = filtered.filter(story => story.story_type === selectedType);
+    }
+    
+    // Apply location filter
+    if (locationFilter.trim()) {
+      const locationQuery = locationFilter.toLowerCase();
+      filtered = filtered.filter(story => {
+        if (!story.location) return false;
+        
+        const locationString = JSON.stringify(story.location).toLowerCase();
+        return locationString.includes(locationQuery);
+      });
+    }
+    
+    setFilteredStories(filtered);
+    setCurrentPage(1);
   };
   
-  const clearSearch = () => {
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    applyFilters();
+  };
+  
+  const clearFilters = () => {
     setSearchQuery("");
-    setFilteredObjects(objects);
+    setSelectedType("");
+    setLocationFilter("");
+    setFilteredStories(stories);
+    setCurrentPage(1);
   };
   
   // Pagination logic
-  const totalPages = Math.ceil(filteredObjects.length / objectsPerPage);
-  const indexOfLastObject = currentPage * objectsPerPage;
-  const indexOfFirstObject = indexOfLastObject - objectsPerPage;
-  const currentObjects = filteredObjects.slice(indexOfFirstObject, indexOfLastObject);
+  const totalPages = Math.ceil(filteredStories.length / storiesPerPage);
+  const indexOfLastStory = currentPage * storiesPerPage;
+  const indexOfFirstStory = indexOfLastStory - storiesPerPage;
+  const currentStories = filteredStories.slice(indexOfFirstStory, indexOfLastStory);
   
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
   
@@ -182,8 +212,8 @@ const Explore = () => {
         <div className="container">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-connectos-700">Explorar objetos</h1>
-              <p className="text-muted-foreground mt-1">Descubra histórias de objetos compartilhados publicamente</p>
+              <h1 className="text-3xl font-bold text-connectos-700">Explorar histórias</h1>
+              <p className="text-muted-foreground mt-1">Descubra histórias compartilhadas publicamente</p>
             </div>
             
             <form onSubmit={handleSearch} className="w-full md:w-auto">
@@ -191,7 +221,7 @@ const Explore = () => {
                 <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Buscar objetos..."
+                  placeholder="Buscar histórias..."
                   className="pl-9 pr-12 w-full md:w-64"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -202,7 +232,10 @@ const Explore = () => {
                     variant="ghost" 
                     size="icon" 
                     className="absolute right-12 h-full"
-                    onClick={clearSearch}
+                    onClick={() => {
+                      setSearchQuery("");
+                      applyFilters();
+                    }}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -216,32 +249,113 @@ const Explore = () => {
           
           <div className="mb-6 flex justify-between items-center">
             <p className="text-sm text-muted-foreground">
-              {isLoading ? "Carregando objetos..." : `${filteredObjects.length} objetos encontrados`}
+              {isLoading ? "Carregando histórias..." : `${filteredStories.length} histórias encontradas`}
             </p>
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              <span>Filtrar</span>
-            </Button>
+            
+            <Drawer>
+              <DrawerTrigger asChild>
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  <span>Filtrar</span>
+                </Button>
+              </DrawerTrigger>
+              <DrawerContent>
+                <div className="mx-auto w-full max-w-sm">
+                  <DrawerHeader>
+                    <DrawerTitle>Filtrar histórias</DrawerTitle>
+                    <DrawerDescription>
+                      Aplique filtros para encontrar histórias específicas
+                    </DrawerDescription>
+                  </DrawerHeader>
+                  <div className="p-4 pb-0">
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-sm font-medium">Tipo de história</Label>
+                        <RadioGroup 
+                          value={selectedType} 
+                          onValueChange={setSelectedType}
+                          className="grid grid-cols-2 gap-2 mt-2"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="" id="todos" />
+                            <Label htmlFor="todos">Todos</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="objeto" id="filter-objeto" />
+                            <Label htmlFor="filter-objeto">Objeto</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="pessoa" id="filter-pessoa" />
+                            <Label htmlFor="filter-pessoa">Pessoa</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="espaço" id="filter-espaco" />
+                            <Label htmlFor="filter-espaco">Espaço</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="evento" id="filter-evento" />
+                            <Label htmlFor="filter-evento">Evento</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="outro" id="filter-outro" />
+                            <Label htmlFor="filter-outro">Outro</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      
+                      <Separator />
+                      
+                      <div>
+                        <Label htmlFor="location" className="text-sm font-medium">Localização</Label>
+                        <div className="flex items-center mt-2">
+                          <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                          <Input
+                            id="location"
+                            placeholder="Cidade, estado ou país..."
+                            value={locationFilter}
+                            onChange={(e) => setLocationFilter(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <DrawerFooter>
+                    <Button onClick={applyFilters} className="bg-connectos-400 hover:bg-connectos-500">
+                      Aplicar filtros
+                    </Button>
+                    <Button variant="outline" onClick={clearFilters}>
+                      Limpar filtros
+                    </Button>
+                    <DrawerClose asChild>
+                      <Button variant="outline">Cancelar</Button>
+                    </DrawerClose>
+                  </DrawerFooter>
+                </div>
+              </DrawerContent>
+            </Drawer>
           </div>
           
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="h-40 bg-gray-100 animate-pulse rounded-lg"></div>
+                <div key={i} className="h-64 bg-gray-100 animate-pulse rounded-lg"></div>
               ))}
             </div>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {currentObjects.map((object) => (
-                  <ObjectCard 
-                    key={object.id}
-                    id={object.id}
-                    name={object.name}
-                    description={object.description || ""}
-                    lastUpdated={new Date(object.updated_at).toLocaleDateString('pt-BR')}
-                    isPublic={Boolean(object.is_public)}
-                    recordCount={object.recordCount || 0}
+                {currentStories.map((story) => (
+                  <StoryCard 
+                    key={story.id}
+                    id={story.id}
+                    name={story.name}
+                    description={story.description || ""}
+                    lastUpdated={new Date(story.updated_at).toLocaleDateString('pt-BR')}
+                    isPublic={Boolean(story.is_public)}
+                    recordCount={story.recordCount || 0}
+                    storyType={story.story_type as StoryType}
+                    location={story.location}
+                    thumbnailUrl={story.thumbnail}
                   />
                 ))}
               </div>
@@ -268,16 +382,16 @@ const Explore = () => {
             </>
           )}
           
-          {!isLoading && filteredObjects.length === 0 && (
+          {!isLoading && filteredStories.length === 0 && (
             <div className="text-center py-12">
-              <h3 className="text-lg font-medium">Nenhum objeto encontrado</h3>
+              <h3 className="text-lg font-medium">Nenhuma história encontrada</h3>
               <p className="text-muted-foreground mt-1">Tente uma busca diferente ou explore outros termos</p>
               <Button 
                 variant="outline" 
                 className="mt-4"
-                onClick={clearSearch}
+                onClick={clearFilters}
               >
-                Ver todos os objetos
+                Ver todas as histórias
               </Button>
             </div>
           )}
