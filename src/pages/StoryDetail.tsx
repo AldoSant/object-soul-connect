@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -14,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Edit, Share2, Globe, Lock, Download, MapPin, FileText, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Json } from '@/integrations/supabase/types';
-import { MediaFile, Story, Record, Location, StoryType } from '@/types';
+import { MediaFile, Story, RecordType, Location, StoryType, jsonToLocation, jsonToMediaFiles } from '@/types';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 // Map for story type display names
@@ -32,7 +31,7 @@ const StoryDetail = () => {
   const { toast } = useToast();
   
   const [story, setStory] = useState<Story | null>(null);
-  const [records, setRecords] = useState<Record[]>([]);
+  const [records, setRecords] = useState<RecordType[]>([]);
   const [showRecordForm, setShowRecordForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -55,7 +54,11 @@ const StoryDetail = () => {
       if (error) throw error;
       
       if (data) {
-        setStory(data as Story);
+        setStory({
+          ...data,
+          location: jsonToLocation(data.location),
+          story_type: (data.story_type || 'objeto') as StoryType
+        } as Story);
       } else {
         toast({
           title: "História não encontrada",
@@ -87,11 +90,16 @@ const StoryDetail = () => {
       if (error) throw error;
       
       if (data) {
-        // Transform media_files from Json to MediaFile[]
-        const transformedData: Record[] = data.map(record => ({
-          ...record,
+        // Transform the data to match our RecordType interface
+        const transformedData: RecordType[] = data.map(record => ({
+          id: record.id,
           story_id: record.object_id,
-          media_files: record.media_files ? (record.media_files as unknown as MediaFile[]) : null
+          title: record.title,
+          description: record.description,
+          is_public: record.is_public || false,
+          created_at: record.created_at,
+          location: jsonToLocation(record.location),
+          media_files: jsonToMediaFiles(record.media_files)
         }));
         
         setRecords(transformedData);
@@ -126,8 +134,8 @@ const StoryDetail = () => {
             title: record.title,
             description: record.description,
             is_public: record.isPublic,
-            location: record.location,
-            media_files: record.mediaFiles.length > 0 ? record.mediaFiles as unknown as Json : null
+            location: record.location as Json,
+            media_files: record.mediaFiles as unknown as Json
           }
         ])
         .select()
@@ -135,11 +143,16 @@ const StoryDetail = () => {
       
       if (error) throw error;
       
-      // Transform the returned data to match our Record type
-      const newRecord: Record = {
-        ...data,
+      // Transform the returned data to match our RecordType interface
+      const newRecord: RecordType = {
+        id: data.id,
         story_id: data.object_id,
-        media_files: data.media_files ? (data.media_files as unknown as MediaFile[]) : null
+        title: data.title,
+        description: data.description,
+        is_public: data.is_public || false,
+        created_at: data.created_at,
+        location: jsonToLocation(data.location),
+        media_files: jsonToMediaFiles(data.media_files)
       };
       
       setRecords([newRecord, ...records]);

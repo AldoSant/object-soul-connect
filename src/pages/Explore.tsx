@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -16,7 +17,7 @@ import {
 import { Search, Filter, X, MapPin, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/hooks/use-toast";
-import { Story, StoryType } from '@/types';
+import { Story, StoryType, jsonToLocation } from '@/types';
 import {
   Drawer,
   DrawerClose,
@@ -65,10 +66,13 @@ const Explore = () => {
             .select('*', { count: 'exact', head: true })
             .eq('object_id', story.id);
           
+          // Transform the data to match our Story interface
           return {
             ...story,
-            recordCount: count || 0
-          };
+            recordCount: count || 0,
+            location: jsonToLocation(story.location),
+            story_type: (story.story_type || 'objeto') as StoryType
+          } as Story;
         }));
         
         setStories(storiesWithRecordCount);
@@ -273,7 +277,7 @@ const Explore = () => {
                         <Label className="text-sm font-medium">Tipo de história</Label>
                         <RadioGroup 
                           value={selectedType} 
-                          onValueChange={setSelectedType}
+                          onValueChange={(value) => setSelectedType(value as StoryType | "")}
                           className="grid grid-cols-2 gap-2 mt-2"
                         >
                           <div className="flex items-center space-x-2">

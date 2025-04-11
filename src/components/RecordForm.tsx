@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,7 +37,11 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSubmit, onCancel }) => {
     e.preventDefault();
     
     // Check if all files are uploaded
-    if (mediaFiles.some(file => file.uploaded === false && file.file)) {
+    const hasUnsavedFiles = mediaFiles.some(file => 
+      file.uploading === true || (file.uploaded === false && file.file)
+    );
+    
+    if (hasUnsavedFiles) {
       alert("Por favor, envie todos os arquivos antes de salvar o registro.");
       return;
     }

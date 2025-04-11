@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -14,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tag, QrCode, Link as LinkIcon, PlusCircle, MapPin, Upload, Image } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { StoryType, Location } from '@/types';
+import { Json } from '@/integrations/supabase/types';
 import { v4 as uuidv4 } from 'uuid';
 
 const NewStory = () => {
@@ -106,27 +106,25 @@ const NewStory = () => {
         thumbnailUrl = await uploadImage(thumbnail, 'thumbnails');
       }
       
-      // Process location
+      // Process location - if not showing location or all fields are empty, set to null
       const locationData = !showLocation || (
         !location.city?.trim() && 
         !location.state?.trim() && 
         !location.country?.trim()
-      ) ? null : location;
+      ) ? null : location as unknown as Json;
       
       // Insert story into the database
       const { data, error } = await supabase
         .from('objects')
-        .insert([
-          { 
-            name, 
-            description, 
-            is_public: isPublic,
-            story_type: storyType,
-            location: locationData,
-            cover_image: coverImageUrl,
-            thumbnail: thumbnailUrl
-          }
-        ])
+        .insert({
+          name, 
+          description, 
+          is_public: isPublic,
+          story_type: storyType,
+          location: locationData,
+          cover_image: coverImageUrl,
+          thumbnail: thumbnailUrl
+        })
         .select();
       
       if (error) throw error;
