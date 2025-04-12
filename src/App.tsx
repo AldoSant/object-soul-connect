@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound";
 import StoryDetail from "./pages/StoryDetail";
 import NewStory from "./pages/NewStory";
 import Explore from "./pages/Explore";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,17 @@ const AppRoutes = () => (
       } 
     />
     <Route path="/explore" element={<Explore />} />
+    
+    {/* Profile routes */}
+    <Route 
+      path="/profile" 
+      element={
+        <ProtectedRoute>
+          <Profile />
+        </ProtectedRoute>
+      } 
+    />
+    <Route path="/profile/:id" element={<Profile />} />
     
     {/* Legacy routes for backward compatibility */}
     <Route path="/object/:id" element={<StoryDetail />} />
