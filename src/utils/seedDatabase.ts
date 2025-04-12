@@ -310,6 +310,15 @@ export const seedStories = async (): Promise<void> => {
       
       // Inserir os registros para esta história
       for (const record of records) {
+        // Fix: Convert MediaFile[] to a JSON-compatible format that Supabase can handle
+        const mediaFilesJson = record.mediaFiles ? 
+          record.mediaFiles.map(file => ({
+            id: file.id,
+            url: file.url,
+            type: file.type,
+            name: file.name
+          })) : [];
+        
         const { error: recordError } = await supabase
           .from('records')
           .insert({
@@ -318,7 +327,7 @@ export const seedStories = async (): Promise<void> => {
             description: record.description,
             is_public: record.isPublic,
             location: record.location || null,
-            media_files: record.mediaFiles || []
+            media_files: mediaFilesJson
           });
         
         if (recordError) {
