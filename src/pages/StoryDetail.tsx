@@ -1,17 +1,20 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import StoryTimeline from '@/components/StoryTimeline';
 import RecordForm from '@/components/RecordForm';
+import CommentForm from '@/components/CommentForm';
+import CommentsList from '@/components/CommentsList';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { MediaFile, Location, RecordType, StoryType, jsonToLocation, jsonToMediaFiles } from '@/types';
-import { Globe, Lock, MapPin, Clock, Tag as TagIcon, Plus, FileDown } from 'lucide-react';
+import { Globe, Lock, MapPin, Clock, Tag as TagIcon, Plus, FileDown, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -32,12 +35,18 @@ const StoryDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [story, setStory] = useState<any>(null);
   const [records, setRecords] = useState<RecordType[]>([]);
   const [timelineRecords, setTimelineRecords] = useState<TimelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewRecordForm, setShowNewRecordForm] = useState(false);
+  const [refreshComments, setRefreshComments] = useState(0);
+  
+  const isOwner = useMemo(() => {
+    return user && story?.user_id === user.id;
+  }, [user, story]);
   
   useEffect(() => {
     if (id) loadStory(id);
@@ -46,7 +55,6 @@ const StoryDetail = () => {
   const loadStory = async (storyId: string) => {
     setLoading(true);
     try {
-      // Get story
       const { data: storyData, error: storyError } = await supabase
         .from('objects')
         .select('*')
@@ -55,7 +63,6 @@ const StoryDetail = () => {
       
       if (storyError) throw storyError;
       
-      // Get records
       const { data: recordsData, error: recordsError } = await supabase
         .from('records')
         .select('*')
@@ -78,7 +85,6 @@ const StoryDetail = () => {
       
       setRecords(processedRecords);
       
-      // Convert to timeline format
       const timeline = processedRecords.map(record => ({
         id: record.id,
         date: format(new Date(record.created_at), 'dd/MM/yyyy HH:mm'),
@@ -111,7 +117,6 @@ const StoryDetail = () => {
     mediaFiles: MediaFile[];
   }) => {
     try {
-      // Insert record
       const { data, error } = await supabase
         .from('records')
         .insert({
@@ -126,7 +131,6 @@ const StoryDetail = () => {
       
       if (error) throw error;
       
-      // Update local state
       if (data) {
         const newRecord = {
           ...data[0],
@@ -137,7 +141,6 @@ const StoryDetail = () => {
         
         setRecords([newRecord, ...records]);
         
-        // Add to timeline
         const newTimelineRecord = {
           id: newRecord.id,
           date: format(new Date(newRecord.created_at), 'dd/MM/yyyy HH:mm'),
@@ -151,15 +154,12 @@ const StoryDetail = () => {
         setTimelineRecords([newTimelineRecord, ...timelineRecords]);
       }
       
-      // Hide form
       setShowNewRecordForm(false);
       
-      // Show success message
       toast({
         title: "Registro adicionado",
         description: "Seu novo registro foi adicionado com sucesso à timeline.",
       });
-      
     } catch (error) {
       console.error('Error adding record:', error);
       toast({
@@ -170,19 +170,16 @@ const StoryDetail = () => {
     }
   };
 
-  // Function to generate PDF of the story
   const generatePDF = () => {
     try {
       if (!story) return;
 
       const doc = new jsPDF();
       
-      // Add title
       doc.setFontSize(22);
       doc.setTextColor(33, 33, 33);
       doc.text(story.name, 20, 20);
       
-      // Add story type
       if (story.story_type) {
         doc.setFontSize(12);
         doc.setTextColor(100, 100, 100);
@@ -190,7 +187,6 @@ const StoryDetail = () => {
         doc.text(storyTypeText, 20, 30);
       }
       
-      // Add description
       if (story.description) {
         doc.setFontSize(12);
         doc.setTextColor(33, 33, 33);
@@ -198,7 +194,6 @@ const StoryDetail = () => {
         doc.text(splitDescription, 20, 40);
       }
       
-      // Add location if available
       if (story.location) {
         const locationParts = [
           story.location.city,
@@ -213,13 +208,11 @@ const StoryDetail = () => {
         }
       }
       
-      // Add timeline header
       doc.setFontSize(16);
       doc.setTextColor(33, 33, 33);
       doc.text('Timeline', 20, 80);
       
       if (timelineRecords.length > 0) {
-        // Get data for table
         const tableData = timelineRecords.map(record => [
           record.date,
           record.title,
@@ -231,7 +224,6 @@ const StoryDetail = () => {
           ].filter(Boolean).join(', ') : ''
         ]);
         
-        // Add table
         (doc as any).autoTable({
           startY: 85,
           head: [['Data', 'Título', 'Descrição', 'Localização']],
@@ -246,7 +238,6 @@ const StoryDetail = () => {
         doc.text('Nenhum registro encontrado para esta história.', 20, 90);
       }
       
-      // Add footer
       const pageCount = (doc as any).internal.getNumberOfPages();
       doc.setFontSize(10);
       for (let i = 1; i <= pageCount; i++) {
@@ -264,7 +255,6 @@ const StoryDetail = () => {
         );
       }
       
-      // Save PDF
       doc.save(`historia-${story.name.toLowerCase().replace(/\s+/g, '-')}.pdf`);
       
       toast({
@@ -332,11 +322,14 @@ const StoryDetail = () => {
     );
   }
   
+  const handleCommentAdded = () => {
+    setRefreshComments(prev => prev + 1);
+  };
+  
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1">
-        {/* Hero section with cover image */}
         {story.cover_image && (
           <div className="relative h-[300px] overflow-hidden">
             <img 
@@ -376,9 +369,7 @@ const StoryDetail = () => {
           </div>
         )}
         
-        {/* Content section */}
         <div className="container max-w-4xl py-8">
-          {/* If no cover image, show title here */}
           {!story.cover_image && (
             <div className="mb-8">
               <div className="flex justify-between items-start">
@@ -424,7 +415,6 @@ const StoryDetail = () => {
             </div>
           )}
           
-          {/* Description and location */}
           <div className="mb-8">
             {story.description && (
               <p className="text-muted-foreground mb-4">{story.description}</p>
@@ -442,48 +432,71 @@ const StoryDetail = () => {
             )}
           </div>
           
-          {/* Add record button */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Timeline</h2>
-            
-            <div className="flex gap-2">
-              {story.cover_image && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex items-center gap-1"
-                  onClick={generatePDF}
-                >
-                  <FileDown size={14} />
-                  <span>PDF</span>
-                </Button>
-              )}
+          <Tabs defaultValue="timeline">
+            <div className="flex justify-between items-center mb-6">
+              <TabsList>
+                <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                <TabsTrigger value="comments">Comentários</TabsTrigger>
+              </TabsList>
               
-              <Button 
-                className="bg-connectos-400 hover:bg-connectos-500"
-                onClick={() => setShowNewRecordForm(!showNewRecordForm)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar registro
-              </Button>
+              <div className="flex gap-2">
+                {story.cover_image && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex items-center gap-1"
+                    onClick={generatePDF}
+                  >
+                    <FileDown size={14} />
+                    <span>PDF</span>
+                  </Button>
+                )}
+                
+                {isOwner && (
+                  <Button 
+                    className="bg-connectos-400 hover:bg-connectos-500"
+                    onClick={() => setShowNewRecordForm(!showNewRecordForm)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Adicionar registro
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-          
-          {/* New record form */}
-          {showNewRecordForm && (
-            <div className="mb-8">
-              <RecordForm 
-                onSubmit={handleAddRecord} 
-                onCancel={() => setShowNewRecordForm(false)} 
+            
+            {showNewRecordForm && (
+              <div className="mb-8">
+                <RecordForm 
+                  onSubmit={handleAddRecord} 
+                  onCancel={() => setShowNewRecordForm(false)} 
+                />
+              </div>
+            )}
+            
+            <TabsContent value="timeline">
+              <StoryTimeline 
+                records={timelineRecords} 
+                onAddRecord={() => setShowNewRecordForm(true)} 
               />
-            </div>
-          )}
-          
-          {/* Timeline */}
-          <StoryTimeline 
-            records={timelineRecords} 
-            onAddRecord={() => setShowNewRecordForm(true)} 
-          />
+            </TabsContent>
+            
+            <TabsContent value="comments">
+              <div className="space-y-8">
+                <div className="bg-gray-50 p-6 rounded-lg border">
+                  <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-connectos-500" />
+                    Deixar um comentário
+                  </h3>
+                  <CommentForm storyId={id!} onSuccess={handleCommentAdded} />
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Comentários</h3>
+                  <CommentsList storyId={id!} refreshTrigger={refreshComments} />
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
       <Footer />

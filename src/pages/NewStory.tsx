@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -11,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/hooks/useAuth';
 import { Tag, QrCode, Link as LinkIcon, PlusCircle, MapPin, Upload, Image } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { StoryType, Location } from '@/types';
@@ -20,6 +20,7 @@ import { v4 as uuidv4 } from 'uuid';
 const NewStory = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -92,10 +93,19 @@ const NewStory = () => {
       return;
     }
     
+    if (!user) {
+      toast({
+        title: "Autenticação necessária",
+        description: "Você precisa estar logado para criar histórias.",
+        variant: "destructive"
+      });
+      navigate('/auth');
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
-      // Upload images if provided
       let coverImageUrl = null;
       let thumbnailUrl = null;
       
@@ -107,14 +117,12 @@ const NewStory = () => {
         thumbnailUrl = await uploadImage(thumbnail, 'thumbnails');
       }
       
-      // Process location - if not showing location or all fields are empty, set to null
       const locationData = !showLocation || (
         !location.city?.trim() && 
         !location.state?.trim() && 
         !location.country?.trim()
       ) ? null : location as unknown as Json;
       
-      // Insert story into the database
       const { data, error } = await supabase
         .from('objects')
         .insert({
@@ -124,7 +132,8 @@ const NewStory = () => {
           story_type: storyType,
           location: locationData,
           cover_image: coverImageUrl,
-          thumbnail: thumbnailUrl
+          thumbnail: thumbnailUrl,
+          user_id: user.id
         })
         .select();
       
@@ -135,7 +144,6 @@ const NewStory = () => {
         description: "Sua nova história digital agora está pronta para receber registros.",
       });
       
-      // Navigate to the new story page
       if (data && data.length > 0) {
         navigate(`/story/${data[0].id}`);
       } else {

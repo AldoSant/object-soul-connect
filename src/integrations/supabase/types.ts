@@ -9,6 +9,41 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      comments: {
+        Row: {
+          author_name: string
+          content: string
+          created_at: string
+          id: string
+          object_id: string
+          user_id: string | null
+        }
+        Insert: {
+          author_name: string
+          content: string
+          created_at?: string
+          id?: string
+          object_id: string
+          user_id?: string | null
+        }
+        Update: {
+          author_name?: string
+          content?: string
+          created_at?: string
+          id?: string
+          object_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "objects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       objects: {
         Row: {
           cover_image: string | null
@@ -21,6 +56,7 @@ export type Database = {
           story_type: string | null
           thumbnail: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           cover_image?: string | null
@@ -33,6 +69,7 @@ export type Database = {
           story_type?: string | null
           thumbnail?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           cover_image?: string | null
@@ -45,6 +82,31 @@ export type Database = {
           story_type?: string | null
           thumbnail?: string | null
           updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          username?: string | null
         }
         Relationships: []
       }
