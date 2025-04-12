@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Card, CardContent } from "@/components/ui/card";
@@ -75,16 +76,17 @@ const Explore = () => {
       if (objectsError) throw objectsError;
 
       // Count records for each object
-      const { data: counts, error: countsError } = await supabase
+      const { data: countsData, error: countsError } = await supabase
         .from('records')
-        .select('object_id, count(*)')
-        .group('object_id');
+        .select('object_id, count')
+        .select('object_id, count(*)', { count: 'exact', head: false })
+        .groupBy('object_id');
 
       if (countsError) throw countsError;
 
       // Create a map of object_id to record count
-      const countMap = (counts || []).reduce((acc, curr) => {
-        acc[curr.object_id] = curr.count;
+      const countMap = (countsData || []).reduce((acc, curr) => {
+        acc[curr.object_id] = parseInt(curr.count, 10);
         return acc;
       }, {} as Record<string, number>);
 
@@ -206,7 +208,7 @@ const Explore = () => {
         "Armadura Japonesa", "Tinteiro Vitoriano", "Leque Oriental",
         "Broche Art Deco", "Jogo de Xadrez de Jade", "Espelho Veneziano",
         "Uniforme Militar Histórico", "Medalha Olímpica", "Baralho de Tarô Antigo",
-        "Troféu Esportivo", "Calculadora Mecânica", "Máscaras Tribais",
+        "Trof��u Esportivo", "Calculadora Mecânica", "Máscaras Tribais",
         "Pulseira Berbere", "Flauta Nativa Americana", "Fóssil Raro",
         "Meteorito", "Cristal Raro", "Conchas Marinhas Raras",
         "Brinquedo de Lata Vintage", "Ferradura da Sorte", "Âncora de Navio",
