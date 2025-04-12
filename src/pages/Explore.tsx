@@ -28,7 +28,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { type StoryType, jsonToLocation, Story } from '@/types';
 import { Filter, MapPin, Tag as TagIcon, Search, LibraryBig, Plus, Database } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -78,9 +77,8 @@ const Explore = () => {
       // Count records for each object
       const { data: countsData, error: countsError } = await supabase
         .from('records')
-        .select('object_id, count')
-        .select('object_id, count(*)', { count: 'exact', head: false })
-        .groupBy('object_id');
+        .select('object_id, count(*)', { count: 'exact' })
+        .group('object_id');
 
       if (countsError) throw countsError;
 
@@ -181,7 +179,6 @@ const Explore = () => {
     .filter((v, i, a) => v && a.indexOf(v) === i)
     .sort();
 
-  // Function to generate sample stories
   const generateSampleStories = async () => {
     setIsGenerating(true);
     
@@ -289,18 +286,17 @@ const Explore = () => {
       
       const storyTypes: StoryType[] = ["objeto", "pessoa", "espaço", "evento", "outro"];
       
-      // Generate stories
       const stories = [];
       
       for (let i = 0; i < numOfStoriesToGenerate; i++) {
         const randomNameIndex = Math.floor(Math.random() * sampleNames.length);
         const randomDescIndex = Math.floor(Math.random() * sampleDescriptions.length);
         const randomCityIndex = Math.floor(Math.random() * cities.length);
-        const randomStateIndex = Math.floor(Math.random() * 10); // Some will have state, some won't
+        const randomStateIndex = Math.floor(Math.random() * 10);
         const randomCountryIndex = Math.floor(Math.random() * countries.length);
         const randomStoryTypeIndex = Math.floor(Math.random() * storyTypes.length);
         
-        const hasLocation = Math.random() > 0.3; // 70% chance to have location
+        const hasLocation = Math.random() > 0.3;
         
         const location = hasLocation ? {
           city: cities[randomCityIndex],
@@ -308,14 +304,12 @@ const Explore = () => {
           country: countries[randomCountryIndex]
         } : null;
         
-        // Random dates in the last year
         const createdAt = new Date();
         createdAt.setDate(createdAt.getDate() - Math.floor(Math.random() * 365));
         
         const updatedAt = new Date(createdAt);
         updatedAt.setDate(updatedAt.getDate() + Math.floor(Math.random() * (new Date().getDate() - createdAt.getDate())));
         
-        // Sometimes have cover images and thumbnails (30% chance)
         const hasCoverImage = Math.random() > 0.7;
         const hasThumbnail = Math.random() > 0.7;
         
@@ -326,7 +320,7 @@ const Explore = () => {
           id: uuidv4(),
           name: sampleNames[randomNameIndex],
           description: sampleDescriptions[randomDescIndex],
-          is_public: Math.random() > 0.2, // 80% chance to be public
+          is_public: Math.random() > 0.2,
           story_type: storyTypes[randomStoryTypeIndex],
           location: location,
           cover_image: hasCoverImage ? `https://source.unsplash.com/random/800x600?sig=${coverImageNumber}` : null,
@@ -335,17 +329,14 @@ const Explore = () => {
           updated_at: updatedAt.toISOString()
         });
         
-        // Remove used name to avoid duplicates
         sampleNames.splice(randomNameIndex, 1);
         if (sampleNames.length === 0) break;
       }
       
-      // Insert stories in batches to avoid hitting API limits
       const batchSize = 10;
       for (let i = 0; i < stories.length; i += batchSize) {
         const batch = stories.slice(i, i + batchSize);
         
-        // Insert stories
         const { error } = await supabase.from('objects').insert(
           batch.map(story => ({
             name: story.name,
@@ -362,7 +353,6 @@ const Explore = () => {
         
         if (error) throw error;
         
-        // Add a small delay between batches
         if (i + batchSize < stories.length) {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
@@ -373,7 +363,6 @@ const Explore = () => {
         description: `${stories.length} novas histórias foram adicionadas ao banco de dados.`,
       });
       
-      // Reload stories
       await loadStories();
     } catch (error) {
       console.error('Error generating sample stories:', error);
