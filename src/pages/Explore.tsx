@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -74,11 +75,11 @@ const Explore = () => {
 
       if (objectsError) throw objectsError;
 
-      // Count records for each object
+      // Count records for each object using a proper query approach for Supabase
       const { data: countsData, error: countsError } = await supabase
         .from('records')
-        .select('object_id, count(*)', { count: 'exact' })
-        .group('object_id');
+        .select('object_id, count(*)')
+        .groupBy('object_id');
 
       if (countsError) throw countsError;
 
