@@ -34,8 +34,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 type SortOption = 'recent' | 'alphabetical' | 'popularity';
 
-const STORY_TYPES: { value: StoryType | ''; label: string }[] = [
-  { value: '', label: 'Todos os tipos' },
+const STORY_TYPES: { value: StoryType | 'all'; label: string }[] = [
+  { value: 'all', label: 'Todos os tipos' },
   { value: 'objeto', label: 'Objeto' },
   { value: 'pessoa', label: 'Pessoa' },
   { value: 'espaço', label: 'Espaço' },
@@ -50,8 +50,8 @@ const Explore = () => {
   const [stories, setStories] = useState<Story[]>([]);
   const [filteredStories, setFilteredStories] = useState<Story[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStoryType, setSelectedStoryType] = useState<'' | StoryType>('');
-  const [selectedLocation, setSelectedLocation] = useState('');
+  const [selectedStoryType, setSelectedStoryType] = useState<'all' | StoryType>('all');
+  const [selectedLocation, setSelectedLocation] = useState('all');
   const [sortOption, setSortOption] = useState<SortOption>('recent');
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -75,19 +75,22 @@ const Explore = () => {
 
       if (objectsError) throw objectsError;
 
-      // Count records for each object using a proper query approach for Supabase
-      const { data: countsData, error: countsError } = await supabase
+      // Count records for each object using a correct approach for Supabase
+      // Note: Supabase doesn't directly support groupBy, so we'll handle the counting in JavaScript
+      const { data: records, error: recordsError } = await supabase
         .from('records')
-        .select('object_id, count(*)')
-        .groupBy('object_id');
+        .select('object_id');
 
-      if (countsError) throw countsError;
+      if (recordsError) throw recordsError;
 
       // Create a map of object_id to record count
-      const countMap = (countsData || []).reduce((acc, curr) => {
-        acc[curr.object_id] = parseInt(curr.count, 10);
-        return acc;
-      }, {} as Record<string, number>);
+      const countMap: Record<string, number> = {};
+      if (records) {
+        records.forEach(record => {
+          const objectId = record.object_id;
+          countMap[objectId] = (countMap[objectId] || 0) + 1;
+        });
+      }
 
       // Map objects to stories with record counts
       const storiesData = (objects || []).map(obj => ({
@@ -122,12 +125,12 @@ const Explore = () => {
     }
 
     // Apply story type filter
-    if (selectedStoryType) {
+    if (selectedStoryType !== 'all') {
       filtered = filtered.filter(story => story.story_type === selectedStoryType);
     }
 
     // Apply location filter
-    if (selectedLocation) {
+    if (selectedLocation !== 'all') {
       filtered = filtered.filter(story => {
         if (!story.location) return false;
         
@@ -158,8 +161,8 @@ const Explore = () => {
 
   const clearFilters = () => {
     setSearchQuery('');
-    setSelectedStoryType('');
-    setSelectedLocation('');
+    setSelectedStoryType('all');
+    setSelectedLocation('all');
     setSortOption('recent');
   };
 
@@ -478,7 +481,7 @@ const Explore = () => {
                 
                 <Select
                   value={selectedStoryType}
-                  onValueChange={(value) => setSelectedStoryType(value as '' | StoryType)}
+                  onValueChange={(value) => setSelectedStoryType(value as 'all' | StoryType)}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <TagIcon className="h-3 w-3 mr-1" />
@@ -502,7 +505,7 @@ const Explore = () => {
                     <SelectValue placeholder="Localização" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas as localizações</SelectItem>
+                    <SelectItem value="all">Todas as localizações</SelectItem>
                     {locations.map((loc) => (
                       <SelectItem key={loc} value={loc}>
                         {loc}
@@ -511,7 +514,7 @@ const Explore = () => {
                   </SelectContent>
                 </Select>
                 
-                {(searchQuery || selectedStoryType || selectedLocation) && (
+                {(searchQuery || selectedStoryType !== 'all' || selectedLocation !== 'all') && (
                   <Button
                     variant="ghost"
                     size="sm"
