@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, PlusCircle, User, Menu } from 'lucide-react';
+import { Home, Search, PlusCircle, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
@@ -16,13 +16,14 @@ const MobileNav: React.FC = () => {
   };
   
   return (
-    <nav className="mobile-nav">
+    <nav className="mobile-nav shadow-lg">
       <Link
         to="/"
         className={cn(
           "flex flex-col items-center justify-center px-2 py-1",
-          isActive('/') ? "text-connectos-500" : "text-gray-500"
+          isActive('/') ? "text-primary font-medium" : "text-gray-500"
         )}
+        aria-label="Página inicial"
       >
         <Home size={24} />
         <span className="text-xs mt-1">Home</span>
@@ -32,8 +33,9 @@ const MobileNav: React.FC = () => {
         to="/explore"
         className={cn(
           "flex flex-col items-center justify-center px-2 py-1",
-          isActive('/explore') ? "text-connectos-500" : "text-gray-500"
+          isActive('/explore') ? "text-primary font-medium" : "text-gray-500"
         )}
+        aria-label="Explorar histórias"
       >
         <Search size={24} />
         <span className="text-xs mt-1">Explorar</span>
@@ -43,8 +45,9 @@ const MobileNav: React.FC = () => {
         <Link
           to="/story/new"
           className="flex flex-col items-center justify-center px-2 py-1"
+          aria-label="Criar nova história"
         >
-          <div className="bg-connectos-500 text-white p-3 rounded-full -mt-5">
+          <div className="bg-primary text-primary-foreground p-3 rounded-full -mt-5 shadow-md">
             <PlusCircle size={24} />
           </div>
           <span className="text-xs mt-1">Criar</span>
@@ -56,8 +59,9 @@ const MobileNav: React.FC = () => {
           to="/profile"
           className={cn(
             "flex flex-col items-center justify-center px-2 py-1",
-            isActive('/profile') ? "text-connectos-500" : "text-gray-500"
+            isActive('/profile') ? "text-primary font-medium" : "text-gray-500"
           )}
+          aria-label="Perfil do usuário"
         >
           <User size={24} />
           <span className="text-xs mt-1">Perfil</span>
@@ -67,8 +71,9 @@ const MobileNav: React.FC = () => {
           to="/auth"
           className={cn(
             "flex flex-col items-center justify-center px-2 py-1",
-            isActive('/auth') ? "text-connectos-500" : "text-gray-500"
+            isActive('/auth') ? "text-primary font-medium" : "text-gray-500"
           )}
+          aria-label="Entrar ou cadastrar"
         >
           <User size={24} />
           <span className="text-xs mt-1">Entrar</span>

@@ -72,25 +72,49 @@
     @apply border-border;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+    height: 100%;
+    overscroll-behavior-y: none;
+  }
+
   body {
     @apply bg-background text-foreground;
+    position: relative;
+    height: 100%;
+    width: 100%;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   /* Improved touch targets for mobile */
   button, a, input, select, textarea {
     @apply touch-manipulation;
   }
+
+  /* PWA specific styles */
+  @media (display-mode: standalone) {
+    .hide-on-pwa {
+      display: none !important;
+    }
+    
+    body {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+  }
 }
 
 @layer components {
   .timeline-dot {
-    @apply w-4 h-4 rounded-full bg-connectos-300 absolute -left-[8px] mt-1;
+    @apply w-4 h-4 rounded-full bg-primary/70 absolute -left-[8px] mt-1;
   }
 
   .timeline-line {
-    @apply absolute left-0 top-0 bottom-0 w-[2px] bg-connectos-100;
+    @apply absolute left-0 top-0 bottom-0 w-[2px] bg-primary/20;
   }
 
   .timeline-card {
@@ -98,7 +122,7 @@
   }
 
   .record-card {
-    @apply rounded-lg border p-4 bg-white dark:bg-connectos-800 hover:shadow-md transition-shadow;
+    @apply rounded-lg border p-4 bg-white dark:bg-gray-800 hover:shadow-md transition-shadow;
   }
   
   /* Mobile-first container */
@@ -125,7 +149,8 @@
   
   /* Bottom navigation for mobile */
   .mobile-nav {
-    @apply fixed bottom-0 left-0 right-0 bg-white dark:bg-connectos-800 border-t flex justify-around items-center h-16 z-40 md:hidden;
+    @apply fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t flex justify-around items-center h-16 z-40 md:hidden;
+    padding-bottom: env(safe-area-inset-bottom);
   }
   
   /* Hide scrollbar but allow scrolling */
@@ -144,9 +169,41 @@
   .min-h-screen {
     min-height: -webkit-fill-available;
   }
+  
+  html {
+    height: -webkit-fill-available;
+  }
 }
 
 /* Prevent pull-to-refresh on mobile */
 html, body {
   overscroll-behavior-y: contain;
+}
+
+/* Fix for iOS safari 100vh issue */
+.h-screen {
+  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
+}
+
+/* Fix for notch/safe area in landscape mode */
+@media screen and (orientation: landscape) {
+  .landscape-notch-padding {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Loading animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

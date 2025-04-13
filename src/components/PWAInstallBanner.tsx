@@ -22,6 +22,9 @@ const PWAInstallBanner: React.FC = () => {
                        (window.navigator as any).standalone || 
                        document.referrer.includes('android-app://');
     
+    // Debug log for testing
+    console.log('PWA Banner check - isStandalone:', isStandalone);
+    
     // Check if the user has previously dismissed the banner
     const hasDismissed = localStorage.getItem('pwa-banner-dismissed') === 'true';
     
@@ -30,6 +33,10 @@ const PWAInstallBanner: React.FC = () => {
       return;
     }
 
+    // Force show banner for testing if needed
+    // Comment this out for production
+    // setShowBanner(true);
+
     const handleBeforeInstallPrompt = (e: Event) => {
       // Prevent Chrome 67 and earlier from automatically showing the prompt
       e.preventDefault();
@@ -37,6 +44,7 @@ const PWAInstallBanner: React.FC = () => {
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       // Show the banner
       setShowBanner(true);
+      console.log('Install prompt captured and banner should show');
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -47,10 +55,24 @@ const PWAInstallBanner: React.FC = () => {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      console.log('No deferred prompt available, showing fallback instructions');
+      // Provide fallback instructions based on browser
+      const ua = navigator.userAgent;
+      const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+      const isIOS = /iPad|iPhone|iPod/.test(ua);
+      
+      if (isIOS && isSafari) {
+        alert('Para instalar: toque no ícone de compartilhamento e selecione "Adicionar à Tela de Início"');
+      } else {
+        alert('Acesse este site no Chrome ou Safari para instalar o aplicativo');
+      }
+      return;
+    }
     
     // Show the installation prompt
     deferredPrompt.prompt();
+    console.log('PWA install prompt triggered');
     
     // Wait for the user to respond to the prompt
     const choiceResult = await deferredPrompt.userChoice;
@@ -72,12 +94,16 @@ const PWAInstallBanner: React.FC = () => {
     localStorage.setItem('pwa-banner-dismissed', 'true');
   };
 
+  // Force show banner for testing
+  // Uncomment and use for debugging if needed
+  // if (!showBanner) return <Button onClick={() => setShowBanner(true)}>Show Install Banner (Debug)</Button>;
+
   if (!showBanner || dismissed) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-[320px] bg-white dark:bg-connectos-800 rounded-lg shadow-lg border border-connectos-200 dark:border-connectos-700 p-4 transition-all duration-300 ease-in-out">
+    <div className="fixed bottom-4 right-4 z-50 max-w-[320px] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 transition-all duration-300 ease-in-out">
       <div className="flex justify-between items-start mb-2">
-        <h3 className="text-lg font-semibold text-connectos-700 dark:text-connectos-300">
+        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
           Instalar App
         </h3>
         <button 
@@ -93,7 +119,7 @@ const PWAInstallBanner: React.FC = () => {
       </p>
       <Button 
         onClick={handleInstallClick}
-        className="w-full bg-connectos-500 hover:bg-connectos-600 text-white"
+        className="w-full bg-primary hover:bg-primary/90 text-white"
       >
         <Download className="mr-2 h-4 w-4" />
         {isMobile ? 'Adicionar à tela inicial' : 'Instalar aplicativo'}

@@ -1,12 +1,14 @@
 
 {
-  "name": "ConnectOS",
+  "name": "ConnectOS - A Alma Digital das Coisas",
   "short_name": "ConnectOS",
-  "description": "A alma digital das coisas",
+  "description": "Dando vida digital aos objetos físicos com histórias, memórias e conexões",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#20b480",
+  "categories": ["productivity", "lifestyle", "utilities"],
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
@@ -20,5 +22,14 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot1.png",
+      "sizes": "1280x720",
+      "type": "image/png"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
 }

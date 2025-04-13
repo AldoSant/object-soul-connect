@@ -17,14 +17,24 @@ import PWAInstallBanner from "./components/PWAInstallBanner";
 import MobileNav from "./components/MobileNav";
 import { useIsMobile } from "./hooks/use-mobile";
 
-const queryClient = new QueryClient();
+// Create a new QueryClient instance
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
+    },
+  },
+});
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
   if (loading) {
-    return <div>Carregando...</div>;
+    return <div className="flex justify-center items-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+    </div>;
   }
   
   if (!user) {
@@ -84,7 +94,7 @@ const AppContent = () => {
       <AppRoutes />
       <PWAInstallBanner />
       {isMobile && <MobileNav />}
-      <div className={`pb-${isMobile ? '16' : '0'}`} /> {/* Add padding at the bottom when mobile nav is visible */}
+      {isMobile && <div className="pb-16" />} {/* Add padding at the bottom when mobile nav is visible */}
     </>
   );
 };
