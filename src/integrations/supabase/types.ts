@@ -44,6 +44,27 @@ export type Database = {
           },
         ]
       }
+      follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
       objects: {
         Row: {
           cover_image: string | null
@@ -51,6 +72,7 @@ export type Database = {
           description: string | null
           id: string
           is_public: boolean | null
+          last_activity_at: string | null
           location: Json | null
           name: string
           story_type: string | null
@@ -64,6 +86,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_public?: boolean | null
+          last_activity_at?: string | null
           location?: Json | null
           name: string
           story_type?: string | null
@@ -77,6 +100,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_public?: boolean | null
+          last_activity_at?: string | null
           location?: Json | null
           name?: string
           story_type?: string | null

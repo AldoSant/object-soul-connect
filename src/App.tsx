@@ -13,6 +13,7 @@ import StoryDetail from "./pages/StoryDetail";
 import NewStory from "./pages/NewStory";
 import Explore from "./pages/Explore";
 import Profile from "./pages/Profile";
+import Feed from "./pages/Feed";
 import PWAInstallBanner from "./components/PWAInstallBanner";
 import MobileNav from "./components/MobileNav";
 import { useIsMobile } from "./hooks/use-mobile";
@@ -44,10 +45,27 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Component to redirect authenticated users to feed
+const RedirectAuthenticated = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="flex justify-center items-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+    </div>;
+  }
+  
+  if (user) {
+    return <Navigate to="/feed" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
 const AppRoutes = () => (
   <Routes>
-    <Route path="/" element={<Index />} />
-    <Route path="/auth" element={<Auth />} />
+    <Route path="/" element={<RedirectAuthenticated><Index /></RedirectAuthenticated>} />
+    <Route path="/auth" element={<RedirectAuthenticated><Auth /></RedirectAuthenticated>} />
     <Route path="/story/:id" element={<StoryDetail />} />
     <Route 
       path="/story/new" 
@@ -58,6 +76,16 @@ const AppRoutes = () => (
       } 
     />
     <Route path="/explore" element={<Explore />} />
+    
+    {/* Feed route */}
+    <Route 
+      path="/feed" 
+      element={
+        <ProtectedRoute>
+          <Feed />
+        </ProtectedRoute>
+      } 
+    />
     
     {/* Profile routes */}
     <Route 

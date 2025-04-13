@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import UserMenu from './UserMenu';
-import { PlusCircle, Home, Search, Menu, X } from 'lucide-react';
+import { PlusCircle, Home, Search, Menu, Rss } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
@@ -25,6 +25,12 @@ const Navbar: React.FC = () => {
               <Home size={16} />
               <span>Home</span>
             </Link>
+            {user && (
+              <Link to="/feed" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                <Rss size={16} />
+                <span>Feed</span>
+              </Link>
+            )}
             <Link to="/explore" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
               <Search size={16} />
               <span>Explore</span>
@@ -57,6 +63,14 @@ const Navbar: React.FC = () => {
                       <span>Home</span>
                     </Link>
                   </SheetClose>
+                  {user && (
+                    <SheetClose asChild>
+                      <Link to="/feed" className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-connectos-700 rounded-md">
+                        <Rss size={18} />
+                        <span>Feed</span>
+                      </Link>
+                    </SheetClose>
+                  )}
                   <SheetClose asChild>
                     <Link to="/explore" className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-connectos-700 rounded-md">
                       <Search size={18} />

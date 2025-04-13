@@ -3,6 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Globe, Lock, MapPin, Tag } from 'lucide-react';
 import { StoryType } from '@/types';
 
@@ -16,6 +17,8 @@ interface StoryCardProps {
   storyType?: StoryType;
   location?: { city?: string; state?: string; country?: string };
   thumbnailUrl?: string;
+  authorName?: string;
+  authorAvatar?: string;
 }
 
 const storyTypeLabels: Record<StoryType, string> = {
@@ -35,7 +38,9 @@ const StoryCard: React.FC<StoryCardProps> = ({
   recordCount,
   storyType = 'objeto',
   location,
-  thumbnailUrl
+  thumbnailUrl,
+  authorName,
+  authorAvatar
 }) => {
   return (
     <Link to={`/story/${id}`}>
@@ -50,6 +55,18 @@ const StoryCard: React.FC<StoryCardProps> = ({
           </div>
         )}
         <CardContent className={`${thumbnailUrl ? 'pt-4' : 'pt-6'}`}>
+          {authorName && (
+            <div className="flex items-center gap-2 mb-3">
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={authorAvatar} />
+                <AvatarFallback className="text-xs bg-connectos-100 text-connectos-700">
+                  {authorName[0]}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm text-muted-foreground truncate">{authorName}</span>
+            </div>
+          )}
+          
           <div className="flex justify-between items-start mb-2">
             <h3 className="font-semibold text-lg line-clamp-1">{name}</h3>
             {isPublic ? (
