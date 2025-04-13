@@ -159,20 +159,24 @@ const StoryCard: React.FC<StoryCardProps> = ({
     }
   };
 
+  const defaultThumbnail = `/placeholder.svg`;
+
   return (
     <div className="h-full relative">
       <Link to={`/story/${id}`} className="block h-full">
-        <Card className="h-full hover:shadow-md transition-shadow overflow-hidden">
-          {thumbnailUrl && (
-            <div className="h-32 overflow-hidden">
-              <img 
-                src={thumbnailUrl} 
-                alt={name} 
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
-          <CardContent className={`${thumbnailUrl ? 'pt-4' : 'pt-6'}`}>
+        <Card className="h-full hover:shadow-md transition-shadow overflow-hidden border-connectos-100">
+          <div className="h-40 overflow-hidden bg-gray-100">
+            <img 
+              src={thumbnailUrl || defaultThumbnail} 
+              alt={name} 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = defaultThumbnail;
+                (e.target as HTMLImageElement).classList.add('object-contain', 'p-4');
+              }}
+            />
+          </div>
+          <CardContent className="pt-4">
             {authorName && authorId && (
               <div className="flex items-center gap-2 mb-3">
                 <Link 
@@ -183,7 +187,7 @@ const StoryCard: React.FC<StoryCardProps> = ({
                   <Avatar className="h-6 w-6">
                     <AvatarImage src={authorAvatar} />
                     <AvatarFallback className="text-xs bg-connectos-100 text-connectos-700">
-                      {authorName[0]}
+                      {authorName[0]?.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-sm text-muted-foreground truncate">{authorName}</span>
@@ -236,7 +240,7 @@ const StoryCard: React.FC<StoryCardProps> = ({
         <Button
           size="sm"
           variant={isFollowing ? "secondary" : "outline"}
-          className={`absolute top-2 right-2 rounded-full p-2 h-8 w-8 ${!thumbnailUrl ? 'bg-white shadow-sm' : ''}`}
+          className={`absolute top-2 right-2 rounded-full p-2 h-8 w-8 ${thumbnailUrl ? 'bg-white/80 hover:bg-white shadow-sm' : 'bg-white shadow-sm'}`}
           onClick={handleFollowStory}
           disabled={loading}
         >
