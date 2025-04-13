@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -68,17 +69,28 @@ const NewStory = () => {
     const fileName = `${uuidv4()}.${fileExt}`;
     const filePath = `${path}/${fileName}`;
     
-    const { data, error } = await supabase.storage
-      .from('stories')
-      .upload(filePath, file);
-    
-    if (error) throw error;
-    
-    const { data: urlData } = await supabase.storage
-      .from('stories')
-      .getPublicUrl(filePath);
-    
-    return urlData.publicUrl;
+    try {
+      // Upload the file to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('stories')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) throw error;
+      
+      // Get the public URL for the uploaded file
+      const { data: urlData } = supabase.storage
+        .from('stories')
+        .getPublicUrl(filePath);
+      
+      console.log('Uploaded image URL:', urlData.publicUrl);
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -109,20 +121,52 @@ const NewStory = () => {
       let coverImageUrl = null;
       let thumbnailUrl = null;
       
+      // Upload images if provided
       if (coverImage) {
-        coverImageUrl = await uploadImage(coverImage, 'covers');
+        try {
+          coverImageUrl = await uploadImage(coverImage, 'covers');
+          console.log('Cover image uploaded:', coverImageUrl);
+        } catch (error) {
+          console.error('Failed to upload cover image:', error);
+          toast({
+            title: "Erro ao enviar imagem de capa",
+            description: "Não foi possível enviar a imagem de capa. Tente novamente.",
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
       }
       
       if (thumbnail) {
-        thumbnailUrl = await uploadImage(thumbnail, 'thumbnails');
+        try {
+          thumbnailUrl = await uploadImage(thumbnail, 'thumbnails');
+          console.log('Thumbnail uploaded:', thumbnailUrl);
+        } catch (error) {
+          console.error('Failed to upload thumbnail:', error);
+          toast({
+            title: "Erro ao enviar miniatura",
+            description: "Não foi possível enviar a miniatura. Tente novamente.",
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
       }
       
+      // Process location data
       const locationData = !showLocation || (
         !location.city?.trim() && 
         !location.state?.trim() && 
         !location.country?.trim()
       ) ? null : location as unknown as Json;
       
+      console.log('Inserting new story with data:', { 
+        name, description, is_public: isPublic, story_type: storyType, 
+        location: locationData, cover_image: coverImageUrl, thumbnail: thumbnailUrl 
+      });
+      
+      // Create the story in the database
       const { data, error } = await supabase
         .from('objects')
         .insert({
@@ -139,6 +183,8 @@ const NewStory = () => {
       
       if (error) throw error;
       
+      console.log('Story created successfully:', data);
+      
       toast({
         title: "História criada com sucesso!",
         description: "Sua nova história digital agora está pronta para receber registros.",
@@ -149,11 +195,11 @@ const NewStory = () => {
       } else {
         throw new Error("No data returned from story creation");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating story:', error);
       toast({
         title: "Erro ao criar história",
-        description: "Ocorreu um erro ao registrar sua história. Por favor, tente novamente.",
+        description: error.message || "Ocorreu um erro ao registrar sua história. Por favor, tente novamente.",
         variant: "destructive"
       });
     } finally {
