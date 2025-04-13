@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'connectos-v2';
+const CACHE_NAME = 'connectos-v3';
 
 const urlsToCache = [
   '/',

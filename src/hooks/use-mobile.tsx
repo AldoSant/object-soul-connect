@@ -5,11 +5,8 @@ const MOBILE_BREAKPOINT = 768;
 
 export function useIsMobile() {
   const [isMobile, setIsMobile] = useState<boolean>(() => {
-    // Para SSR ou renderização inicial, verifica se window existe
-    if (typeof window !== "undefined") {
-      return window.innerWidth < MOBILE_BREAKPOINT;
-    }
-    return false;
+    // For SSR or initial render, check if window exists
+    return typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT;
   });
 
   const checkMobile = useCallback(() => {
@@ -19,11 +16,14 @@ export function useIsMobile() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Usa ResizeObserver para melhor desempenho
+    // Check on mount
+    checkMobile();
+    
+    // Use ResizeObserver for better performance
     const resizeObserver = new ResizeObserver(checkMobile);
     resizeObserver.observe(document.body);
 
-    // Também monitora mudanças de orientação em dispositivos móveis
+    // Also monitor orientation changes on mobile devices
     window.addEventListener("orientationchange", checkMobile);
 
     return () => {

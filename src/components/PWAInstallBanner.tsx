@@ -10,6 +10,12 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+declare global {
+  interface WindowEventMap {
+    'beforeinstallprompt': BeforeInstallPromptEvent;
+  }
+}
+
 const PWAInstallBanner: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showBanner, setShowBanner] = useState(false);
@@ -29,19 +35,25 @@ const PWAInstallBanner: React.FC = () => {
     const hasDismissed = localStorage.getItem('pwa-banner-dismissed') === 'true';
     
     if (isStandalone || hasDismissed) {
+      console.log('PWA Banner hidden: already installed or dismissed');
       setShowBanner(false);
       return;
     }
 
-    // Force show banner for testing if needed
-    // Comment this out for production
-    // setShowBanner(true);
+    // FOR TESTING: Force show banner for browsers that don't support install prompt
+    // This ensures the banner appears regardless of browser support
+    setTimeout(() => {
+      if (!showBanner && !deferredPrompt) {
+        console.log('Forcing PWA banner to show for testing');
+        setShowBanner(true);
+      }
+    }, 2000);
 
-    const handleBeforeInstallPrompt = (e: Event) => {
+    const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
       // Prevent Chrome 67 and earlier from automatically showing the prompt
       e.preventDefault();
       // Store the event for later use
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setDeferredPrompt(e);
       // Show the banner
       setShowBanner(true);
       console.log('Install prompt captured and banner should show');
@@ -52,7 +64,7 @@ const PWAInstallBanner: React.FC = () => {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, []);
+  }, [showBanner, deferredPrompt]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
@@ -93,10 +105,6 @@ const PWAInstallBanner: React.FC = () => {
     setDismissed(true);
     localStorage.setItem('pwa-banner-dismissed', 'true');
   };
-
-  // Force show banner for testing
-  // Uncomment and use for debugging if needed
-  // if (!showBanner) return <Button onClick={() => setShowBanner(true)}>Show Install Banner (Debug)</Button>;
 
   if (!showBanner || dismissed) return null;
 

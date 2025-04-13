@@ -46,6 +46,19 @@
             });
         });
       }
+      
+      // Calculate viewport height for mobile browsers
+      const setVH = () => {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      };
+      
+      // Set on load
+      setVH();
+      
+      // Recalculate on resize and orientation change
+      window.addEventListener('resize', setVH);
+      window.addEventListener('orientationchange', setVH);
     </script>
   </body>
 </html>
