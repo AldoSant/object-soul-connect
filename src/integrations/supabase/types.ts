@@ -175,6 +175,35 @@ export type Database = {
           },
         ]
       }
+      story_follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          id: string
+          story_id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          id?: string
+          story_id: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          id?: string
+          story_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_follows_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "objects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

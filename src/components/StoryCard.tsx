@@ -63,7 +63,7 @@ const StoryCard: React.FC<StoryCardProps> = ({
     if (!user || !authorId) return;
     
     try {
-      // Check if following the story specifically
+      // Check if following the story specifically using a raw query
       const { data: storyFollow, error: storyError } = await supabase
         .from('story_follows')
         .select('id')
@@ -116,12 +116,23 @@ const StoryCard: React.FC<StoryCardProps> = ({
     
     try {
       if (isFollowing) {
-        // Unfollow story
+        // Unfollow story using a raw query
         const { error: storyError } = await supabase
-          .from('story_follows')
-          .delete()
-          .eq('follower_id', user.id)
-          .eq('story_id', id);
+          .rpc('unfollow_story', { 
+            follower_id_param: user.id, 
+            story_id_param: id 
+          })
+          .then(async result => {
+            if (result.error) {
+              // Fallback to raw delete if RPC is not available
+              return await supabase
+                .from('story_follows')
+                .delete()
+                .eq('follower_id', user.id)
+                .eq('story_id', id);
+            }
+            return result;
+          });
           
         if (storyError) throw storyError;
         
@@ -130,12 +141,23 @@ const StoryCard: React.FC<StoryCardProps> = ({
           description: 'Você deixou de seguir esta história.',
         });
       } else {
-        // Follow story
+        // Follow story using direct insert
         const { error: storyError } = await supabase
-          .from('story_follows')
-          .insert({
-            follower_id: user.id,
-            story_id: id
+          .rpc('follow_story', { 
+            follower_id_param: user.id, 
+            story_id_param: id 
+          })
+          .then(async result => {
+            if (result.error) {
+              // Fallback to raw insert if RPC is not available
+              return await supabase
+                .from('story_follows')
+                .insert({
+                  follower_id: user.id,
+                  story_id: id
+                });
+            }
+            return result;
           });
           
         if (storyError) throw storyError;
