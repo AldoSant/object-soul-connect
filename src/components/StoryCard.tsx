@@ -116,51 +116,29 @@ const StoryCard: React.FC<StoryCardProps> = ({
     
     try {
       if (isFollowing) {
-        // Unfollow story using a raw query
-        const { error: storyError } = await supabase
-          .rpc('unfollow_story', { 
-            follower_id_param: user.id, 
-            story_id_param: id 
-          })
-          .then(async result => {
-            if (result.error) {
-              // Fallback to raw delete if RPC is not available
-              return await supabase
-                .from('story_follows')
-                .delete()
-                .eq('follower_id', user.id)
-                .eq('story_id', id);
-            }
-            return result;
-          });
+        // Use a raw SQL query through a POST request to execute RPC
+        const { error } = await supabase
+          .from('story_follows')
+          .delete()
+          .eq('follower_id', user.id)
+          .eq('story_id', id);
           
-        if (storyError) throw storyError;
+        if (error) throw error;
         
         toast({
           title: 'Deixou de seguir',
           description: 'Você deixou de seguir esta história.',
         });
       } else {
-        // Follow story using direct insert
-        const { error: storyError } = await supabase
-          .rpc('follow_story', { 
-            follower_id_param: user.id, 
-            story_id_param: id 
-          })
-          .then(async result => {
-            if (result.error) {
-              // Fallback to raw insert if RPC is not available
-              return await supabase
-                .from('story_follows')
-                .insert({
-                  follower_id: user.id,
-                  story_id: id
-                });
-            }
-            return result;
+        // Use a raw SQL insert for following
+        const { error } = await supabase
+          .from('story_follows')
+          .insert({
+            follower_id: user.id,
+            story_id: id
           });
           
-        if (storyError) throw storyError;
+        if (error) throw error;
         
         toast({
           title: 'Seguindo',
