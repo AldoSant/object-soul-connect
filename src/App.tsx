@@ -13,6 +13,9 @@ import StoryDetail from "./pages/StoryDetail";
 import NewStory from "./pages/NewStory";
 import Explore from "./pages/Explore";
 import Profile from "./pages/Profile";
+import PWAInstallBanner from "./components/PWAInstallBanner";
+import MobileNav from "./components/MobileNav";
+import { useIsMobile } from "./hooks/use-mobile";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +76,19 @@ const AppRoutes = () => (
   </Routes>
 );
 
+const AppContent = () => {
+  const isMobile = useIsMobile();
+  
+  return (
+    <>
+      <AppRoutes />
+      <PWAInstallBanner />
+      {isMobile && <MobileNav />}
+      <div className={`pb-${isMobile ? '16' : '0'}`} /> {/* Add padding at the bottom when mobile nav is visible */}
+    </>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -80,7 +96,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <AppRoutes />
+          <AppContent />
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
