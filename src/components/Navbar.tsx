@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import UserMenu from './UserMenu';
-import { PlusCircle, Home, Search, Menu } from 'lucide-react';
+import { PlusCircle, Home, Search, Menu, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
@@ -24,6 +24,10 @@ const Navbar: React.FC = () => {
             <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
               <Home size={16} />
               <span>Home</span>
+            </Link>
+            <Link to="/feed" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+              <Users size={16} />
+              <span>Feed</span>
             </Link>
             <Link to="/explore" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
               <Search size={16} />
@@ -55,6 +59,12 @@ const Navbar: React.FC = () => {
                     <Link to="/" className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-connectos-700 rounded-md">
                       <Home size={18} />
                       <span>Home</span>
+                    </Link>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Link to="/feed" className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-connectos-700 rounded-md">
+                      <Users size={18} />
+                      <span>Feed</span>
                     </Link>
                   </SheetClose>
                   <SheetClose asChild>

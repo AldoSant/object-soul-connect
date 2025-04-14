@@ -41,22 +41,52 @@ const Feed = () => {
 
         if (followingError) throw followingError;
 
-        if (!followingData || followingData.length === 0) {
-          setLoading(false);
+        // Buscar histórias seguidas diretamente
+        const { data: followedStories, error: followedStoriesError } = await supabase
+          .from('story_follows')
+          .select('story_id')
+          .eq('follower_id', user.id);
+          
+        if (followedStoriesError) throw followedStoriesError;
+        
+        let followingIds: string[] = [];
+        if (followingData && followingData.length > 0) {
+          followingIds = followingData.map(follow => follow.following_id);
+        }
+        
+        let followedStoryIds: string[] = [];
+        if (followedStories && followedStories.length > 0) {
+          followedStoryIds = followedStories.map(follow => follow.story_id);
+        }
+
+        if (followingIds.length === 0 && followedStoryIds.length === 0) {
           setStories([]);
+          setLoading(false);
           return;
         }
 
-        const followingIds = followingData.map(follow => follow.following_id);
-
-        // Get stories from followed users
-        const { data: storiesData, error: storiesError } = await supabase
+        // Get stories from followed users and/or directly followed stories
+        const query = supabase
           .from('objects')
           .select('id, name, description, updated_at, is_public, story_type, location, thumbnail, user_id, last_activity_at')
-          .in('user_id', followingIds)
           .eq('is_public', true)
           .order('last_activity_at', { ascending: false })
           .limit(20);
+          
+        if (followingIds.length > 0) {
+          if (followedStoryIds.length > 0) {
+            // Combinar usuários seguidos e histórias seguidas
+            query.or(`user_id.in.(${followingIds.join(',')}),id.in.(${followedStoryIds.join(',')})`);
+          } else {
+            // Apenas usuários seguidos
+            query.in('user_id', followingIds);
+          }
+        } else if (followedStoryIds.length > 0) {
+          // Apenas histórias seguidas
+          query.in('id', followedStoryIds);
+        }
+        
+        const { data: storiesData, error: storiesError } = await query;
 
         if (storiesError) throw storiesError;
 
@@ -80,6 +110,7 @@ const Feed = () => {
               ...story,
               authorName: profileData?.full_name || profileData?.username || 'Usuário',
               authorAvatar: profileData?.avatar_url,
+              authorId: story.user_id,
               recordCount: count || 0,
               lastUpdated: format(
                 new Date(story.last_activity_at || story.updated_at), 
@@ -163,6 +194,7 @@ const Feed = () => {
                           thumbnailUrl={story.thumbnail}
                           authorName={story.authorName}
                           authorAvatar={story.authorAvatar}
+                          authorId={story.authorId}
                         />
                       ))}
                     </div>

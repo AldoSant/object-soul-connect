@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -24,6 +23,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import StoryCard from '@/components/StoryCard';
 import { supabase } from '@/integrations/supabase/client';
 import { type StoryType, jsonToLocation, Story } from '@/types';
@@ -43,6 +51,8 @@ const STORY_TYPES: { value: StoryType | 'all'; label: string }[] = [
   { value: 'outro', label: 'Outro' },
 ];
 
+const ITEMS_PER_PAGE = 20;
+
 const Explore = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -56,7 +66,11 @@ const Explore = () => {
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [numOfStoriesToGenerate, setNumOfStoriesToGenerate] = useState(20);
-
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [displayedStories, setDisplayedStories] = useState<Story[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  
   useEffect(() => {
     loadStories();
   }, []);
@@ -64,26 +78,29 @@ const Explore = () => {
   useEffect(() => {
     filterStories();
   }, [stories, searchQuery, selectedStoryType, selectedLocation, sortOption]);
+  
+  useEffect(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    setDisplayedStories(filteredStories.slice(startIndex, endIndex));
+    setTotalPages(Math.ceil(filteredStories.length / ITEMS_PER_PAGE));
+  }, [filteredStories, currentPage]);
 
   const loadStories = async () => {
     setLoading(true);
     try {
-      // Get all objects
       const { data: objects, error: objectsError } = await supabase
         .from('objects')
         .select('*');
 
       if (objectsError) throw objectsError;
 
-      // Count records for each object using a correct approach for Supabase
-      // Note: Supabase doesn't directly support groupBy, so we'll handle the counting in JavaScript
       const { data: records, error: recordsError } = await supabase
         .from('records')
         .select('object_id');
 
       if (recordsError) throw recordsError;
 
-      // Create a map of object_id to record count
       const countMap: Record<string, number> = {};
       if (records) {
         records.forEach(record => {
@@ -92,7 +109,6 @@ const Explore = () => {
         });
       }
 
-      // Map objects to stories with record counts
       const storiesData = (objects || []).map(obj => ({
         ...obj,
         recordCount: countMap[obj.id] || 0,
@@ -115,7 +131,6 @@ const Explore = () => {
   const filterStories = () => {
     let filtered = [...stories];
 
-    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(story =>
@@ -124,12 +139,10 @@ const Explore = () => {
       );
     }
 
-    // Apply story type filter
     if (selectedStoryType !== 'all') {
       filtered = filtered.filter(story => story.story_type === selectedStoryType);
     }
 
-    // Apply location filter
     if (selectedLocation !== 'all') {
       filtered = filtered.filter(story => {
         if (!story.location) return false;
@@ -144,19 +157,18 @@ const Explore = () => {
       });
     }
 
-    // Apply sorting
     filtered.sort((a, b) => {
       if (sortOption === 'alphabetical') {
         return a.name.localeCompare(b.name);
       } else if (sortOption === 'popularity') {
         return (b.recordCount || 0) - (a.recordCount || 0);
       } else {
-        // Default 'recent'
         return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
       }
     });
 
     setFilteredStories(filtered);
+    setCurrentPage(1);
   };
 
   const clearFilters = () => {
@@ -164,6 +176,12 @@ const Explore = () => {
     setSelectedStoryType('all');
     setSelectedLocation('all');
     setSortOption('recent');
+  };
+  
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const storyTypes = [...new Set(stories.map(s => s.story_type).filter(Boolean))];
@@ -381,6 +399,44 @@ const Explore = () => {
     }
   };
 
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxPagesToShow = 5;
+    
+    if (totalPages <= maxPagesToShow) {
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      pageNumbers.push(1);
+      
+      let startPage = Math.max(2, currentPage - 1);
+      let endPage = Math.min(totalPages - 1, currentPage + 1);
+      
+      if (currentPage <= 2) {
+        endPage = 4;
+      } else if (currentPage >= totalPages - 1) {
+        startPage = totalPages - 3;
+      }
+      
+      if (startPage > 2) {
+        pageNumbers.push(-1);
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        pageNumbers.push(i);
+      }
+      
+      if (endPage < totalPages - 1) {
+        pageNumbers.push(-2);
+      }
+      
+      pageNumbers.push(totalPages);
+    }
+    
+    return pageNumbers;
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -533,22 +589,59 @@ const Explore = () => {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-connectos-400"></div>
             </div>
           ) : filteredStories.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {filteredStories.map((story) => (
-                <StoryCard
-                  key={story.id}
-                  id={story.id}
-                  name={story.name}
-                  description={story.description || ''}
-                  lastUpdated={format(new Date(story.updated_at), 'dd/MM/yyyy')}
-                  isPublic={story.is_public || false}
-                  recordCount={story.recordCount || 0}
-                  storyType={story.story_type || undefined}
-                  location={story.location || undefined}
-                  thumbnailUrl={story.thumbnail || undefined}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {displayedStories.map((story) => (
+                  <StoryCard
+                    key={story.id}
+                    id={story.id}
+                    name={story.name}
+                    description={story.description || ''}
+                    lastUpdated={format(new Date(story.updated_at), 'dd/MM/yyyy')}
+                    isPublic={story.is_public || false}
+                    recordCount={story.recordCount || 0}
+                    storyType={story.story_type || undefined}
+                    location={story.location || undefined}
+                    thumbnailUrl={story.thumbnail || undefined}
+                  />
+                ))}
+              </div>
+              
+              {totalPages > 1 && (
+                <Pagination className="my-8">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                    
+                    {getPageNumbers().map((pageNum, index) => (
+                      <PaginationItem key={index}>
+                        {pageNum === -1 || pageNum === -2 ? (
+                          <PaginationEllipsis />
+                        ) : (
+                          <PaginationLink
+                            isActive={pageNum === currentPage}
+                            onClick={() => handlePageChange(pageNum)}
+                          >
+                            {pageNum}
+                          </PaginationLink>
+                        )}
+                      </PaginationItem>
+                    ))}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </>
           ) : (
             <div className="text-center py-12">
               <LibraryBig className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

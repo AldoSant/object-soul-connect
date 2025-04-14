@@ -14,6 +14,7 @@ import NewStory from "./pages/NewStory";
 import Explore from "./pages/Explore";
 import Profile from "./pages/Profile";
 import Home from "./pages/Home";
+import Feed from "./pages/Feed";
 import PWAInstallBanner from "./components/PWAInstallBanner";
 import MobileNav from "./components/MobileNav";
 import { useIsMobile } from "./hooks/use-mobile";
@@ -72,6 +73,14 @@ const AppRoutes = () => (
         </ProtectedRoute>
       } 
     />
+    <Route 
+      path="/feed" 
+      element={
+        <ProtectedRoute>
+          <Feed />
+        </ProtectedRoute>
+      } 
+    />
     <Route path="/auth" element={<RedirectAuthenticated><Auth /></RedirectAuthenticated>} />
     <Route path="/story/:id" element={<StoryDetail />} />
     <Route 
@@ -83,9 +92,6 @@ const AppRoutes = () => (
       } 
     />
     <Route path="/explore" element={<Explore />} />
-    
-    {/* Redirect feed route to home */}
-    <Route path="/feed" element={<Navigate to="/" replace />} />
     
     {/* Profile routes */}
     <Route 
