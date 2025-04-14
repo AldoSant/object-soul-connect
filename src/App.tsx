@@ -13,7 +13,7 @@ import StoryDetail from "./pages/StoryDetail";
 import NewStory from "./pages/NewStory";
 import Explore from "./pages/Explore";
 import Profile from "./pages/Profile";
-import Feed from "./pages/Feed";
+import Home from "./pages/Home";
 import PWAInstallBanner from "./components/PWAInstallBanner";
 import MobileNav from "./components/MobileNav";
 import { useIsMobile } from "./hooks/use-mobile";
@@ -45,7 +45,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Component to redirect authenticated users to feed
+// Component to redirect authenticated users to home
 const RedirectAuthenticated = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
@@ -56,7 +56,7 @@ const RedirectAuthenticated = ({ children }: { children: React.ReactNode }) => {
   }
   
   if (user) {
-    return <Navigate to="/feed" replace />;
+    return <Navigate to="/" replace />;
   }
   
   return <>{children}</>;
@@ -64,7 +64,14 @@ const RedirectAuthenticated = ({ children }: { children: React.ReactNode }) => {
 
 const AppRoutes = () => (
   <Routes>
-    <Route path="/" element={<RedirectAuthenticated><Index /></RedirectAuthenticated>} />
+    <Route 
+      path="/" 
+      element={
+        <ProtectedRoute>
+          <Home />
+        </ProtectedRoute>
+      } 
+    />
     <Route path="/auth" element={<RedirectAuthenticated><Auth /></RedirectAuthenticated>} />
     <Route path="/story/:id" element={<StoryDetail />} />
     <Route 
@@ -77,15 +84,8 @@ const AppRoutes = () => (
     />
     <Route path="/explore" element={<Explore />} />
     
-    {/* Feed route */}
-    <Route 
-      path="/feed" 
-      element={
-        <ProtectedRoute>
-          <Feed />
-        </ProtectedRoute>
-      } 
-    />
+    {/* Redirect feed route to home */}
+    <Route path="/feed" element={<Navigate to="/" replace />} />
     
     {/* Profile routes */}
     <Route 
@@ -108,6 +108,9 @@ const AppRoutes = () => (
         </ProtectedRoute>
       } 
     />
+    
+    {/* Handle non-protected index route */}
+    <Route path="/index" element={<RedirectAuthenticated><Index /></RedirectAuthenticated>} />
     
     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
     <Route path="*" element={<NotFound />} />

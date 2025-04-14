@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, PlusCircle, User, Rss } from 'lucide-react';
+import { Home, Search, PlusCircle, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
@@ -18,15 +18,15 @@ const MobileNav: React.FC = () => {
   return (
     <nav className="mobile-nav shadow-lg">
       <Link
-        to={user ? "/feed" : "/"}
+        to="/"
         className={cn(
           "flex flex-col items-center justify-center px-2 py-1",
-          (isActive('/') || isActive('/feed')) ? "text-primary font-medium" : "text-gray-500"
+          isActive('/') ? "text-primary font-medium" : "text-gray-500"
         )}
         aria-label="Página inicial"
       >
-        {user ? <Rss size={24} /> : <Home size={24} />}
-        <span className="text-xs mt-1">{user ? "Feed" : "Home"}</span>
+        <Home size={24} />
+        <span className="text-xs mt-1">Home</span>
       </Link>
       
       <Link
