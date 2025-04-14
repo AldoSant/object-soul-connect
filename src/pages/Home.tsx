@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,7 +13,7 @@ import FollowSuggestions from '@/components/FollowSuggestions';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RefreshCw, Users, User } from 'lucide-react';
+import { RefreshCw, Users, User, Home as HomeIcon } from 'lucide-react';
 
 const Home = () => {
   const { user } = useAuth();
@@ -213,7 +214,7 @@ const Home = () => {
         <div className="container">
           <div className="mb-8 flex justify-between items-center">
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Home className="h-6 w-6 text-connectos-500" />
+              <HomeIcon className="h-6 w-6 text-connectos-500" />
               Início
             </h1>
             <Button 
