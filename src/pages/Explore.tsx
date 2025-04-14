@@ -111,7 +111,8 @@ const Explore = () => {
     try {
       const { data: objects, error: objectsError } = await supabase
         .from('objects')
-        .select('*');
+        .select('*')
+        .eq('is_public', true);
 
       if (objectsError) throw objectsError;
 
@@ -188,7 +189,7 @@ const Explore = () => {
     });
 
     setFilteredStories(filtered);
-    // Only reset to page 1 if we've changed filters
+    // Reset to page 1 if we've changed filters
     if (searchQuery || selectedStoryType !== 'all' || selectedLocation !== 'all' || sortOption !== 'recent') {
       setCurrentPage(1);
     }
@@ -443,7 +444,7 @@ const Explore = () => {
       }
       
       if (startPage > 2) {
-        pageNumbers.push(-1);
+        pageNumbers.push(-1); // Ellipsis indicator
       }
       
       for (let i = startPage; i <= endPage; i++) {
@@ -451,7 +452,7 @@ const Explore = () => {
       }
       
       if (endPage < totalPages - 1) {
-        pageNumbers.push(-2);
+        pageNumbers.push(-2); // Ellipsis indicator
       }
       
       pageNumbers.push(totalPages);
@@ -635,7 +636,11 @@ const Explore = () => {
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious 
-                        onClick={() => handlePageChange(currentPage - 1)}
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePageChange(currentPage - 1);
+                        }}
                         className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
                       />
                     </PaginationItem>
@@ -646,8 +651,12 @@ const Explore = () => {
                           <PaginationEllipsis />
                         ) : (
                           <PaginationLink
+                            href="#"
                             isActive={pageNum === currentPage}
-                            onClick={() => handlePageChange(pageNum)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handlePageChange(pageNum);
+                            }}
                           >
                             {pageNum}
                           </PaginationLink>
@@ -657,7 +666,11 @@ const Explore = () => {
                     
                     <PaginationItem>
                       <PaginationNext 
-                        onClick={() => handlePageChange(currentPage + 1)}
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePageChange(currentPage + 1);
+                        }}
                         className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
                       />
                     </PaginationItem>

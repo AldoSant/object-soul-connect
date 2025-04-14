@@ -59,29 +59,33 @@ const Feed = () => {
           followedStoryIds = followedStories.map(follow => follow.story_id);
         }
 
-        // Get stories - include the user's own stories
-        const query = supabase
+        // Definir condições para a consulta
+        let query = supabase
           .from('objects')
           .select('id, name, description, updated_at, is_public, story_type, location, thumbnail, user_id, last_activity_at')
           .eq('is_public', true)
           .order('last_activity_at', { ascending: false })
           .limit(50);
           
-        // Include user's own stories, following users' stories, and directly followed stories
+        // Construir a query para incluir as histórias do próprio usuário, de usuários seguidos e histórias seguidas diretamente
+        let conditions = [];
+        
+        // Sempre incluir as histórias do próprio usuário
+        conditions.push(`user_id.eq.${user.id}`);
+        
+        // Incluir histórias de usuários seguidos, se houver
         if (followingIds.length > 0) {
-          if (followedStoryIds.length > 0) {
-            // All three: own stories, followed users, followed stories
-            query.or(`user_id.eq.${user.id},user_id.in.(${followingIds.join(',')}),id.in.(${followedStoryIds.join(',')})`);
-          } else {
-            // Own stories and followed users' stories
-            query.or(`user_id.eq.${user.id},user_id.in.(${followingIds.join(',')})`);
-          }
-        } else if (followedStoryIds.length > 0) {
-          // Own stories and followed stories
-          query.or(`user_id.eq.${user.id},id.in.(${followedStoryIds.join(',')})`);
-        } else {
-          // Only own stories if no follows
-          query.eq('user_id', user.id);
+          conditions.push(`user_id.in.(${followingIds.join(',')})`);
+        }
+        
+        // Incluir histórias seguidas diretamente, se houver
+        if (followedStoryIds.length > 0) {
+          conditions.push(`id.in.(${followedStoryIds.join(',')})`);
+        }
+        
+        // Aplicar as condições combinadas com OR
+        if (conditions.length > 0) {
+          query = query.or(conditions.join(','));
         }
         
         const { data: storiesData, error: storiesError } = await query;
