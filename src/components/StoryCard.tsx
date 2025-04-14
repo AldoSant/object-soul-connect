@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -25,6 +24,7 @@ interface StoryCardProps {
   authorName?: string;
   authorAvatar?: string;
   authorId?: string;
+  isOwnStory?: boolean;
 }
 
 const storyTypeLabels: Record<StoryType, string> = {
@@ -47,7 +47,8 @@ const StoryCard: React.FC<StoryCardProps> = ({
   thumbnailUrl,
   authorName,
   authorAvatar,
-  authorId
+  authorId,
+  isOwnStory
 }) => {
   const { user } = useAuth();
   const [isFollowing, setIsFollowing] = useState(false);
@@ -63,7 +64,6 @@ const StoryCard: React.FC<StoryCardProps> = ({
     if (!user || !authorId) return;
     
     try {
-      // Check if following the story specifically using a raw query
       const { data: storyFollow, error: storyError } = await supabase
         .from('story_follows')
         .select('id')
@@ -76,7 +76,6 @@ const StoryCard: React.FC<StoryCardProps> = ({
         return;
       }
       
-      // Check if following the user
       const { data: userFollow, error: userError } = await supabase
         .from('follows')
         .select('id')
@@ -103,7 +102,7 @@ const StoryCard: React.FC<StoryCardProps> = ({
       return;
     }
     
-    if (user.id === authorId) {
+    if (user.id === authorId || isOwnStory) {
       toast({
         title: 'Ação não permitida',
         description: 'Você não pode seguir suas próprias histórias.',
@@ -116,7 +115,6 @@ const StoryCard: React.FC<StoryCardProps> = ({
     
     try {
       if (isFollowing) {
-        // Use a raw SQL query through a POST request to execute RPC
         const { error } = await supabase
           .from('story_follows')
           .delete()
@@ -130,7 +128,6 @@ const StoryCard: React.FC<StoryCardProps> = ({
           description: 'Você deixou de seguir esta história.',
         });
       } else {
-        // Use a raw SQL insert for following
         const { error } = await supabase
           .from('story_follows')
           .insert({
@@ -236,7 +233,7 @@ const StoryCard: React.FC<StoryCardProps> = ({
         </Card>
       </Link>
 
-      {user && authorId && user.id !== authorId && (
+      {user && authorId && !isOwnStory && user.id !== authorId && (
         <Button
           size="sm"
           variant={isFollowing ? "secondary" : "outline"}
