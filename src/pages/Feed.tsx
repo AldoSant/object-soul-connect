@@ -59,31 +59,29 @@ const Feed = () => {
           followedStoryIds = followedStories.map(follow => follow.story_id);
         }
 
-        if (followingIds.length === 0 && followedStoryIds.length === 0) {
-          setStories([]);
-          setLoading(false);
-          return;
-        }
-
-        // Get stories from followed users and/or directly followed stories
+        // Get stories - include the user's own stories
         const query = supabase
           .from('objects')
           .select('id, name, description, updated_at, is_public, story_type, location, thumbnail, user_id, last_activity_at')
           .eq('is_public', true)
           .order('last_activity_at', { ascending: false })
-          .limit(20);
+          .limit(50);
           
+        // Include user's own stories, following users' stories, and directly followed stories
         if (followingIds.length > 0) {
           if (followedStoryIds.length > 0) {
-            // Combinar usuários seguidos e histórias seguidas
-            query.or(`user_id.in.(${followingIds.join(',')}),id.in.(${followedStoryIds.join(',')})`);
+            // All three: own stories, followed users, followed stories
+            query.or(`user_id.eq.${user.id},user_id.in.(${followingIds.join(',')}),id.in.(${followedStoryIds.join(',')})`);
           } else {
-            // Apenas usuários seguidos
-            query.in('user_id', followingIds);
+            // Own stories and followed users' stories
+            query.or(`user_id.eq.${user.id},user_id.in.(${followingIds.join(',')})`);
           }
         } else if (followedStoryIds.length > 0) {
-          // Apenas histórias seguidas
-          query.in('id', followedStoryIds);
+          // Own stories and followed stories
+          query.or(`user_id.eq.${user.id},id.in.(${followedStoryIds.join(',')})`);
+        } else {
+          // Only own stories if no follows
+          query.eq('user_id', user.id);
         }
         
         const { data: storiesData, error: storiesError } = await query;
@@ -116,7 +114,8 @@ const Feed = () => {
                 new Date(story.last_activity_at || story.updated_at), 
                 "dd 'de' MMMM 'de' yyyy", 
                 { locale: ptBR }
-              )
+              ),
+              isOwnStory: story.user_id === user.id
             };
           })
         );
@@ -167,7 +166,7 @@ const Feed = () => {
             <div className="md:col-span-2">
               <Tabs defaultValue="following" className="w-full">
                 <TabsList className="mb-4">
-                  <TabsTrigger value="following">Seguindo</TabsTrigger>
+                  <TabsTrigger value="following">Feed Completo</TabsTrigger>
                   <TabsTrigger value="discover" disabled>Descobrir</TabsTrigger>
                 </TabsList>
                 
@@ -195,6 +194,7 @@ const Feed = () => {
                           authorName={story.authorName}
                           authorAvatar={story.authorAvatar}
                           authorId={story.authorId}
+                          isOwnStory={story.isOwnStory}
                         />
                       ))}
                     </div>

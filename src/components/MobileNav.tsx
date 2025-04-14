@@ -16,7 +16,7 @@ const MobileNav: React.FC = () => {
   };
   
   return (
-    <nav className="mobile-nav shadow-lg">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-connectos-800 border-t px-2 py-2 flex items-center justify-around z-50">
       <Link
         to="/"
         className={cn(

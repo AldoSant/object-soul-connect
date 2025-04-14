@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Card, CardContent } from "@/components/ui/card";
@@ -56,6 +57,7 @@ const ITEMS_PER_PAGE = 20;
 const Explore = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [stories, setStories] = useState<Story[]>([]);
   const [filteredStories, setFilteredStories] = useState<Story[]>([]);
@@ -67,7 +69,8 @@ const Explore = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [numOfStoriesToGenerate, setNumOfStoriesToGenerate] = useState(20);
   
-  const [currentPage, setCurrentPage] = useState(1);
+  const pageFromUrl = parseInt(searchParams.get('page') || '1');
+  const [currentPage, setCurrentPage] = useState(pageFromUrl > 0 ? pageFromUrl : 1);
   const [displayedStories, setDisplayedStories] = useState<Story[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   
@@ -85,6 +88,23 @@ const Explore = () => {
     setDisplayedStories(filteredStories.slice(startIndex, endIndex));
     setTotalPages(Math.ceil(filteredStories.length / ITEMS_PER_PAGE));
   }, [filteredStories, currentPage]);
+
+  // Update URL when page changes
+  useEffect(() => {
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      newParams.set('page', currentPage.toString());
+      return newParams;
+    });
+  }, [currentPage, setSearchParams]);
+
+  // Set current page from URL when component mounts
+  useEffect(() => {
+    const page = parseInt(searchParams.get('page') || '1');
+    if (page > 0 && page !== currentPage) {
+      setCurrentPage(page);
+    }
+  }, [searchParams]);
 
   const loadStories = async () => {
     setLoading(true);
@@ -168,7 +188,10 @@ const Explore = () => {
     });
 
     setFilteredStories(filtered);
-    setCurrentPage(1);
+    // Only reset to page 1 if we've changed filters
+    if (searchQuery || selectedStoryType !== 'all' || selectedLocation !== 'all' || sortOption !== 'recent') {
+      setCurrentPage(1);
+    }
   };
 
   const clearFilters = () => {
@@ -647,7 +670,7 @@ const Explore = () => {
               <LibraryBig className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">Nenhuma história encontrada</h3>
               <p className="text-muted-foreground mb-6">
-                {searchQuery || selectedStoryType || selectedLocation
+                {searchQuery || selectedStoryType !== 'all' || selectedLocation !== 'all'
                   ? "Tente ajustar seus filtros ou criar uma nova história."
                   : "Comece criando sua primeira história digital."}
               </p>

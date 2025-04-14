@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import UserMenu from './UserMenu';
 import { PlusCircle, Home, Search, Menu, Users } from 'lucide-react';
@@ -11,6 +11,13 @@ import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/s
 const Navbar: React.FC = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const location = useLocation();
+  
+  const isActive = (path: string) => {
+    if (path === '/' && location.pathname === '/') return true;
+    if (path !== '/' && location.pathname.startsWith(path)) return true;
+    return false;
+  };
   
   return (
     <nav className="sticky top-0 z-40 w-full border-b bg-white dark:bg-connectos-800 backdrop-blur-sm bg-opacity-90 dark:bg-opacity-90">
@@ -21,15 +28,24 @@ const Navbar: React.FC = () => {
           </Link>
           
           <div className="hidden md:flex md:gap-4">
-            <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+            <Link 
+              to="/" 
+              className={`text-sm font-medium ${isActive('/') ? 'text-foreground' : 'text-muted-foreground'} hover:text-foreground transition-colors flex items-center gap-1`}
+            >
               <Home size={16} />
               <span>Home</span>
             </Link>
-            <Link to="/feed" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+            <Link 
+              to="/feed" 
+              className={`text-sm font-medium ${isActive('/feed') ? 'text-foreground' : 'text-muted-foreground'} hover:text-foreground transition-colors flex items-center gap-1`}
+            >
               <Users size={16} />
               <span>Feed</span>
             </Link>
-            <Link to="/explore" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+            <Link 
+              to="/explore" 
+              className={`text-sm font-medium ${isActive('/explore') ? 'text-foreground' : 'text-muted-foreground'} hover:text-foreground transition-colors flex items-center gap-1`}
+            >
               <Search size={16} />
               <span>Explore</span>
             </Link>
