@@ -10,7 +10,7 @@ const MobileNav: React.FC = () => {
   const { user } = useAuth();
   
   const isActive = (path: string) => {
-    if (path === '/' && location.pathname === '/') return true;
+    if (path === '/' && (location.pathname === '/' || location.pathname === '/home')) return true;
     if (path !== '/' && location.pathname.startsWith(path)) return true;
     return false;
   };

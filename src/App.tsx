@@ -57,7 +57,7 @@ const RedirectAuthenticated = ({ children }: { children: React.ReactNode }) => {
   }
   
   if (user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/home" replace />;
   }
   
   return <>{children}</>;
@@ -67,6 +67,14 @@ const AppRoutes = () => (
   <Routes>
     <Route 
       path="/" 
+      element={
+        <ProtectedRoute>
+          <Home />
+        </ProtectedRoute>
+      } 
+    />
+    <Route 
+      path="/home" 
       element={
         <ProtectedRoute>
           <Home />

@@ -14,7 +14,7 @@ const Navbar: React.FC = () => {
   const location = useLocation();
   
   const isActive = (path: string) => {
-    if (path === '/' && location.pathname === '/') return true;
+    if (path === '/' && (location.pathname === '/' || location.pathname === '/home')) return true;
     if (path !== '/' && location.pathname.startsWith(path)) return true;
     return false;
   };
