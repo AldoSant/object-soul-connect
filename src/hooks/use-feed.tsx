@@ -19,6 +19,7 @@ export const useFeed = () => {
     const fetchFeedStories = async () => {
       try {
         setLoading(true);
+        console.log("Fetching feed for user:", user.id);
 
         // Get all profiles the user is following
         const { data: followingData, error: followingError } = await supabase
@@ -46,21 +47,37 @@ export const useFeed = () => {
           followedStoryIds = followedStories.map(follow => follow.story_id);
         }
 
-        // Fetch user's own stories and stories from followed users/directly followed stories
-        let query;
+        console.log("Following users:", followingIds.length);
+        console.log("Following stories:", followedStoryIds.length);
+
+        // Incluir sempre as histórias do próprio usuário
+        console.log("Including user's own stories in feed query");
         
-        // Always include user's own stories along with followed content
+        // Construct the OR query condition
+        let orCondition = `user_id.eq.${user.id}`;
+        
+        if (followingIds.length > 0) {
+          orCondition += `,user_id.in.(${followingIds.join(',')})`;
+        }
+        
+        if (followedStoryIds.length > 0) {
+          orCondition += `,id.in.(${followedStoryIds.join(',')})`;
+        }
+
+        console.log("Query condition:", orCondition);
+
+        // Fetch user's own stories and stories from followed users/directly followed stories
         const { data: storiesData, error: storiesError } = await supabase
           .from('objects')
           .select('id, name, description, updated_at, is_public, story_type, location, thumbnail, user_id, last_activity_at')
-          .eq('is_public', true)
-          .or(`user_id.eq.${user.id}${followingIds.length > 0 ? `,user_id.in.(${followingIds.join(',')})` : ''}${followedStoryIds.length > 0 ? `,id.in.(${followedStoryIds.join(',')})` : ''}`)
+          .or(orCondition)
           .order('last_activity_at', { ascending: false })
           .limit(50);
 
         if (storiesError) throw storiesError;
 
         console.log("Feed stories fetched:", storiesData?.length);
+        console.log("User stories in feed (initial check):", storiesData?.filter(s => s.user_id === user.id).length);
 
         // Get profile info and record count for each story
         const enhancedStories = await Promise.all(
@@ -78,6 +95,8 @@ export const useFeed = () => {
               .select('*', { count: 'exact', head: true })
               .eq('object_id', story.id);
 
+            const isOwnStory = story.user_id === user.id;
+
             return {
               ...story,
               authorName: profileData?.full_name || profileData?.username || 'Usuário',
@@ -89,10 +108,14 @@ export const useFeed = () => {
                 "dd 'de' MMMM 'de' yyyy", 
                 { locale: ptBR }
               ),
-              isOwnStory: story.user_id === user.id
+              isOwnStory: isOwnStory
             };
           })
         );
+
+        console.log("Enhanced stories:", enhancedStories.length);
+        console.log("User's own stories (after processing):", enhancedStories.filter(s => s.isOwnStory).length);
+        console.log("User's own stories:", enhancedStories.filter(s => s.isOwnStory).map(s => s.name));
 
         setStories(enhancedStories);
       } catch (error: any) {

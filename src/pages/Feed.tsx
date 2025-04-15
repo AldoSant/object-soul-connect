@@ -9,7 +9,7 @@ import FeedStoriesList from '@/components/FeedStoriesList';
 import FollowSuggestions from '@/components/FollowSuggestions';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RefreshCw, Users } from 'lucide-react';
+import { RefreshCw, Users, User } from 'lucide-react';
 
 const Feed = () => {
   const { user } = useAuth();
@@ -27,6 +27,11 @@ const Feed = () => {
 
   console.log("Total stories in feed:", stories.length);
   console.log("User's own stories:", stories.filter(s => s.isOwnStory).length);
+  console.log("User's own stories:", stories.filter(s => s.isOwnStory).map(s => s.name));
+
+  // Separate user's own stories
+  const userStories = stories.filter(s => s.isOwnStory);
+  const followedStories = stories.filter(s => !s.isOwnStory);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -52,14 +57,25 @@ const Feed = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2">
-              <Tabs defaultValue="following" className="w-full">
+              <Tabs defaultValue="all" className="w-full">
                 <TabsList className="mb-4">
-                  <TabsTrigger value="following">Feed Completo</TabsTrigger>
-                  <TabsTrigger value="discover" disabled>Descobrir</TabsTrigger>
+                  <TabsTrigger value="all">Feed Completo</TabsTrigger>
+                  <TabsTrigger value="mine">
+                    <User size={14} className="mr-1" />
+                    Minhas Histórias
+                  </TabsTrigger>
                 </TabsList>
                 
-                <TabsContent value="following">
+                <TabsContent value="all">
                   <FeedStoriesList loading={loading} stories={stories} />
+                </TabsContent>
+                
+                <TabsContent value="mine">
+                  <FeedStoriesList 
+                    loading={loading} 
+                    stories={userStories}
+                    emptyMessage="Você ainda não criou nenhuma história"
+                  />
                 </TabsContent>
               </Tabs>
             </div>
