@@ -52,6 +52,7 @@ const STORY_TYPES: { value: StoryType | 'all'; label: string }[] = [
   { value: 'outro', label: 'Outro' },
 ];
 
+// Definindo limite de itens por página como 20
 const ITEMS_PER_PAGE = 20;
 
 const Explore = () => {
@@ -83,10 +84,12 @@ const Explore = () => {
   }, [stories, searchQuery, selectedStoryType, selectedLocation, sortOption]);
   
   useEffect(() => {
+    // Garantir que estamos limitando a 20 itens por página
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     setDisplayedStories(filteredStories.slice(startIndex, endIndex));
     setTotalPages(Math.ceil(filteredStories.length / ITEMS_PER_PAGE));
+    console.log(`Paginação: mostrando ${startIndex}-${endIndex} de ${filteredStories.length} histórias (página ${currentPage}/${Math.ceil(filteredStories.length / ITEMS_PER_PAGE)})`);
   }, [filteredStories, currentPage]);
 
   // Update URL when page changes

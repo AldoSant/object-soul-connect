@@ -27,6 +27,7 @@ const Feed = () => {
 
   console.log("Total stories in feed:", stories.length);
   console.log("User's own stories:", stories.filter(s => s.isOwnStory).length);
+  console.log("User's own stories:", stories.filter(s => s.isOwnStory).map(s => s.name));
 
   // Separate user's own stories
   const userStories = stories.filter(s => s.isOwnStory);
