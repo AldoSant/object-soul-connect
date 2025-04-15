@@ -18,8 +18,6 @@ const FeedStoriesList: React.FC<FeedStoriesListProps> = ({
   stories,
   emptyMessage = "Seu feed está vazio. Siga usuários para ver suas histórias."
 }) => {
-  console.log(`FeedStoriesList: ${stories.length} histórias recebidas`);
-  
   if (loading) {
     return (
       <div className="grid grid-cols-1 gap-4">
@@ -46,8 +44,6 @@ const FeedStoriesList: React.FC<FeedStoriesListProps> = ({
       </div>
     );
   }
-  
-  console.log("Exibindo histórias:", stories.map(s => ({id: s.id, nome: s.name, isOwn: s.isOwnStory})));
   
   return (
     <div className="grid grid-cols-1 gap-4">

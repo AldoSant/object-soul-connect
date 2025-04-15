@@ -50,9 +50,6 @@ export const useFeed = () => {
         console.log("Following users:", followingIds.length);
         console.log("Following stories:", followedStoryIds.length);
 
-        // Incluir sempre as histórias do próprio usuário
-        console.log("Including user's own stories in feed query");
-        
         // Construct the OR query condition
         let orCondition = `user_id.eq.${user.id}`;
         
@@ -70,6 +67,7 @@ export const useFeed = () => {
         const { data: storiesData, error: storiesError } = await supabase
           .from('objects')
           .select('id, name, description, updated_at, is_public, story_type, location, thumbnail, user_id, last_activity_at')
+          .eq('is_public', true)
           .or(orCondition)
           .order('last_activity_at', { ascending: false })
           .limit(50);
@@ -77,7 +75,6 @@ export const useFeed = () => {
         if (storiesError) throw storiesError;
 
         console.log("Feed stories fetched:", storiesData?.length);
-        console.log("User stories in feed (initial check):", storiesData?.filter(s => s.user_id === user.id).length);
 
         // Get profile info and record count for each story
         const enhancedStories = await Promise.all(
@@ -95,8 +92,6 @@ export const useFeed = () => {
               .select('*', { count: 'exact', head: true })
               .eq('object_id', story.id);
 
-            const isOwnStory = story.user_id === user.id;
-
             return {
               ...story,
               authorName: profileData?.full_name || profileData?.username || 'Usuário',
@@ -108,14 +103,13 @@ export const useFeed = () => {
                 "dd 'de' MMMM 'de' yyyy", 
                 { locale: ptBR }
               ),
-              isOwnStory: isOwnStory
+              isOwnStory: story.user_id === user.id
             };
           })
         );
 
         console.log("Enhanced stories:", enhancedStories.length);
-        console.log("User's own stories (after processing):", enhancedStories.filter(s => s.isOwnStory).length);
-        console.log("User's own stories:", enhancedStories.filter(s => s.isOwnStory).map(s => s.name));
+        console.log("User's own stories:", enhancedStories.filter(s => s.isOwnStory).length);
 
         setStories(enhancedStories);
       } catch (error: any) {
