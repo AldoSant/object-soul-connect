@@ -46,14 +46,6 @@ export const useFeed = () => {
           followedStoryIds = followedStories.map(follow => follow.story_id);
         }
 
-        // Define query conditions
-        let query = supabase
-          .from('objects')
-          .select('id, name, description, updated_at, is_public, story_type, location, thumbnail, user_id, last_activity_at')
-          .eq('is_public', true)
-          .order('last_activity_at', { ascending: false })
-          .limit(50);
-          
         // Build query for user's own stories, followed users' stories, and directly followed stories
         let conditions = [];
         
@@ -70,11 +62,15 @@ export const useFeed = () => {
           conditions.push(`id.in.(${followedStoryIds.join(',')})`);
         }
         
-        // Apply combined conditions with OR
-        if (conditions.length > 0) {
-          query = query.or(conditions.join(','));
-        }
-        
+        // Define query conditions
+        const query = supabase
+          .from('objects')
+          .select('id, name, description, updated_at, is_public, story_type, location, thumbnail, user_id, last_activity_at')
+          .eq('is_public', true)
+          .or(conditions.join(','))
+          .order('last_activity_at', { ascending: false })
+          .limit(50);
+
         const { data: storiesData, error: storiesError } = await query;
 
         if (storiesError) throw storiesError;
