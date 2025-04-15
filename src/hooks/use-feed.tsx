@@ -46,34 +46,21 @@ export const useFeed = () => {
           followedStoryIds = followedStories.map(follow => follow.story_id);
         }
 
-        // Build query for user's own stories, followed users' stories, and directly followed stories
-        let conditions = [];
+        // Fetch user's own stories and stories from followed users/directly followed stories
+        let query;
         
-        // Always include user's own stories
-        conditions.push(`user_id.eq.${user.id}`);
-        
-        // Include stories from followed users
-        if (followingIds.length > 0) {
-          conditions.push(`user_id.in.(${followingIds.join(',')})`);
-        }
-        
-        // Include directly followed stories
-        if (followedStoryIds.length > 0) {
-          conditions.push(`id.in.(${followedStoryIds.join(',')})`);
-        }
-        
-        // Define query conditions
-        const query = supabase
+        // Always include user's own stories along with followed content
+        const { data: storiesData, error: storiesError } = await supabase
           .from('objects')
           .select('id, name, description, updated_at, is_public, story_type, location, thumbnail, user_id, last_activity_at')
           .eq('is_public', true)
-          .or(conditions.join(','))
+          .or(`user_id.eq.${user.id}${followingIds.length > 0 ? `,user_id.in.(${followingIds.join(',')})` : ''}${followedStoryIds.length > 0 ? `,id.in.(${followedStoryIds.join(',')})` : ''}`)
           .order('last_activity_at', { ascending: false })
           .limit(50);
 
-        const { data: storiesData, error: storiesError } = await query;
-
         if (storiesError) throw storiesError;
+
+        console.log("Feed stories fetched:", storiesData?.length);
 
         // Get profile info and record count for each story
         const enhancedStories = await Promise.all(

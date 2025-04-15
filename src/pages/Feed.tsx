@@ -25,6 +25,9 @@ const Feed = () => {
 
   if (!user) return null;
 
+  console.log("Total stories in feed:", stories.length);
+  console.log("User's own stories:", stories.filter(s => s.isOwnStory).length);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
