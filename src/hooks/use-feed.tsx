@@ -19,6 +19,7 @@ export const useFeed = () => {
     const fetchFeedStories = async () => {
       try {
         setLoading(true);
+        console.log("Fetching feed for user:", user.id);
 
         // Get all profiles the user is following
         const { data: followingData, error: followingError } = await supabase
@@ -46,15 +47,28 @@ export const useFeed = () => {
           followedStoryIds = followedStories.map(follow => follow.story_id);
         }
 
-        // Fetch user's own stories and stories from followed users/directly followed stories
-        let query;
+        console.log("Following users:", followingIds.length);
+        console.log("Following stories:", followedStoryIds.length);
+
+        // Construct the OR query condition
+        let orCondition = `user_id.eq.${user.id}`;
         
-        // Always include user's own stories along with followed content
+        if (followingIds.length > 0) {
+          orCondition += `,user_id.in.(${followingIds.join(',')})`;
+        }
+        
+        if (followedStoryIds.length > 0) {
+          orCondition += `,id.in.(${followedStoryIds.join(',')})`;
+        }
+
+        console.log("Query condition:", orCondition);
+
+        // Fetch user's own stories and stories from followed users/directly followed stories
         const { data: storiesData, error: storiesError } = await supabase
           .from('objects')
           .select('id, name, description, updated_at, is_public, story_type, location, thumbnail, user_id, last_activity_at')
           .eq('is_public', true)
-          .or(`user_id.eq.${user.id}${followingIds.length > 0 ? `,user_id.in.(${followingIds.join(',')})` : ''}${followedStoryIds.length > 0 ? `,id.in.(${followedStoryIds.join(',')})` : ''}`)
+          .or(orCondition)
           .order('last_activity_at', { ascending: false })
           .limit(50);
 
@@ -93,6 +107,9 @@ export const useFeed = () => {
             };
           })
         );
+
+        console.log("Enhanced stories:", enhancedStories.length);
+        console.log("User's own stories:", enhancedStories.filter(s => s.isOwnStory).length);
 
         setStories(enhancedStories);
       } catch (error: any) {
