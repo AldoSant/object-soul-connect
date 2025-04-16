@@ -27,7 +27,7 @@ const manifestoLines = [
   "Todo objeto tem uma vida que vai além da matéria.",
   "O NFC não é um chip. É um portal.",
   "Criamos o ConnectOS para que o mundo possa lembrar.",
-  "Tudo agora tem um "eu digital".",
+  "Tudo agora tem um 'eu digital'.",
   "Não criamos um app. Criamos um ecossistema de consciência.",
   "Resgatamos o tempo profundo num mundo raso.",
   "Não digitalizamos produtos. Acordamos seres.",
