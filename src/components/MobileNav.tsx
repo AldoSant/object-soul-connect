@@ -5,7 +5,7 @@ import { Home, Search, PlusCircle, User, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
-const MobileNav: React.FC = () => {
+const MobileNav = () => {
   const location = useLocation();
   const { user } = useAuth();
   
@@ -16,12 +16,14 @@ const MobileNav: React.FC = () => {
   };
   
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-connectos-800 border-t px-2 py-2 flex items-center justify-around z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-2 py-2 flex items-center justify-around z-50">
       <Link
         to="/"
         className={cn(
-          "flex flex-col items-center justify-center px-2 py-1",
-          isActive('/') ? "text-primary font-medium" : "text-gray-500"
+          "flex flex-col items-center justify-center px-2 py-1 rounded-lg transition-colors",
+          isActive('/') 
+            ? "text-connectos-500 bg-connectos-50 dark:bg-connectos-900/20" 
+            : "text-gray-500 hover:text-connectos-500 hover:bg-gray-50 dark:hover:bg-gray-800"
         )}
         aria-label="Página inicial"
       >
@@ -32,8 +34,10 @@ const MobileNav: React.FC = () => {
       <Link
         to="/feed"
         className={cn(
-          "flex flex-col items-center justify-center px-2 py-1",
-          isActive('/feed') ? "text-primary font-medium" : "text-gray-500"
+          "flex flex-col items-center justify-center px-2 py-1 rounded-lg transition-colors",
+          isActive('/feed')
+            ? "text-connectos-500 bg-connectos-50 dark:bg-connectos-900/20"
+            : "text-gray-500 hover:text-connectos-500 hover:bg-gray-50 dark:hover:bg-gray-800"
         )}
         aria-label="Feed"
       >
@@ -44,8 +48,10 @@ const MobileNav: React.FC = () => {
       <Link
         to="/explore"
         className={cn(
-          "flex flex-col items-center justify-center px-2 py-1",
-          isActive('/explore') ? "text-primary font-medium" : "text-gray-500"
+          "flex flex-col items-center justify-center px-2 py-1 rounded-lg transition-colors",
+          isActive('/explore')
+            ? "text-connectos-500 bg-connectos-50 dark:bg-connectos-900/20"
+            : "text-gray-500 hover:text-connectos-500 hover:bg-gray-50 dark:hover:bg-gray-800"
         )}
         aria-label="Explorar histórias"
       >
@@ -59,38 +65,26 @@ const MobileNav: React.FC = () => {
           className="flex flex-col items-center justify-center px-2 py-1"
           aria-label="Criar nova história"
         >
-          <div className="bg-primary text-primary-foreground p-3 rounded-full -mt-5 shadow-md">
+          <div className="bg-connectos-500 text-white p-3 rounded-full -mt-5 shadow-lg hover:bg-connectos-600 transition-colors">
             <PlusCircle size={24} />
           </div>
           <span className="text-xs mt-1">Criar</span>
         </Link>
       )}
       
-      {user ? (
-        <Link
-          to="/profile"
-          className={cn(
-            "flex flex-col items-center justify-center px-2 py-1",
-            isActive('/profile') ? "text-primary font-medium" : "text-gray-500"
-          )}
-          aria-label="Perfil do usuário"
-        >
-          <User size={24} />
-          <span className="text-xs mt-1">Perfil</span>
-        </Link>
-      ) : (
-        <Link
-          to="/auth"
-          className={cn(
-            "flex flex-col items-center justify-center px-2 py-1",
-            isActive('/auth') ? "text-primary font-medium" : "text-gray-500"
-          )}
-          aria-label="Entrar ou cadastrar"
-        >
-          <User size={24} />
-          <span className="text-xs mt-1">Entrar</span>
-        </Link>
-      )}
+      <Link
+        to={user ? "/profile" : "/auth"}
+        className={cn(
+          "flex flex-col items-center justify-center px-2 py-1 rounded-lg transition-colors",
+          isActive('/profile') || isActive('/auth')
+            ? "text-connectos-500 bg-connectos-50 dark:bg-connectos-900/20"
+            : "text-gray-500 hover:text-connectos-500 hover:bg-gray-50 dark:hover:bg-gray-800"
+        )}
+        aria-label={user ? "Perfil do usuário" : "Entrar ou cadastrar"}
+      >
+        <User size={24} />
+        <span className="text-xs mt-1">{user ? "Perfil" : "Entrar"}</span>
+      </Link>
     </nav>
   );
 };
