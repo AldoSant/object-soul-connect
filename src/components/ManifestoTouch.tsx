@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MoreHorizontal, Book, Quote } from 'lucide-react';
@@ -18,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Correctly define the prop type
 interface ManifestoTouchProps {
-  location: 'feed' | 'story' | 'object' | 'profile';
+  location?: 'feed' | 'story' | 'object' | 'profile';
 }
 
 const manifestoLines = [
@@ -34,7 +33,7 @@ const manifestoLines = [
   "Somos os que dão vida àquilo que foi esquecido."
 ];
 
-const ManifestoTouch: React.FC<ManifestoTouchProps> = ({ location }) => {
+const ManifestoTouch: React.FC<ManifestoTouchProps> = ({ location = 'feed' }) => {
   const [showQuote, setShowQuote] = useState(false);
   const [currentQuote, setCurrentQuote] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
