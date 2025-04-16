@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-// Corrected interface definition with proper union type
+// Interface com a definição correta do tipo location
 interface ManifestoTouchProps {
   location: 'feed' | 'story' | 'object' | 'profile';
 }
