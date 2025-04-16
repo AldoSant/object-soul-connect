@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+// Correctly define the prop type
 interface ManifestoTouchProps {
   location: 'feed' | 'story' | 'object' | 'profile';
 }
