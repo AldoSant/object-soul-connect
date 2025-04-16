@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 const Feed = () => {
   const { user } = useAuth();
@@ -29,7 +29,6 @@ const Feed = () => {
   const [viewMode, setViewMode] = useState('list');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   
-  // Feedback de carregamento para o usuário
   useEffect(() => {
     if (loading) {
       toast({
@@ -40,7 +39,6 @@ const Feed = () => {
     }
   }, [loading, toast]);
 
-  // Redirect to auth if not logged in
   useEffect(() => {
     if (!user) {
       navigate('/auth');
@@ -51,14 +49,12 @@ const Feed = () => {
 
   console.log("Total stories in feed:", stories.length);
   
-  // Filtrar histórias com base na busca
   const filteredStories = stories.filter(story => 
     story.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (story.description && story.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (story.authorName && story.authorName.toLowerCase().includes(searchQuery.toLowerCase()))
   );
   
-  // Ordenar histórias
   const sortedStories = [...filteredStories].sort((a, b) => {
     switch (sortBy) {
       case 'recent':
@@ -76,11 +72,9 @@ const Feed = () => {
     }
   });
 
-  // Separate user's own stories
   const userStories = sortedStories.filter(s => s.isOwnStory);
   const followedStories = sortedStories.filter(s => !s.isOwnStory);
   
-  // Última atualização para mostrar ao usuário
   const lastUpdate = loading 
     ? 'Carregando...' 
     : `Atualizado em ${format(new Date(), "'dia' dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}`;
@@ -257,14 +251,12 @@ const Feed = () => {
   );
 };
 
-// Componente de insights
 interface StoryInsightsProps {
   stories: any[];
   className?: string;
 }
 
 const StoryInsights: React.FC<StoryInsightsProps> = ({ stories, className }) => {
-  // Cálculos básicos de estatísticas
   const totalStories = stories.length;
   const ownStories = stories.filter(s => s.isOwnStory).length;
   const followedStories = totalStories - ownStories;

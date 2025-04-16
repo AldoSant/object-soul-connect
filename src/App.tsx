@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/hooks/useAuth';
-import { PWAInstallBanner } from '@/components/PWAInstallBanner';
+import PWAInstallBanner from '@/components/PWAInstallBanner';
 
 // Pages
 import Index from '@/pages/Index';
