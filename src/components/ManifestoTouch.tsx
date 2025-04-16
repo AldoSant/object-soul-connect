@@ -38,11 +38,9 @@ const ManifestoTouch: React.FC<ManifestoTouchProps> = ({ location = 'feed' }) =>
   const [currentQuote, setCurrentQuote] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Selecionar uma citação aleatória do manifesto com base na localização
   useEffect(() => {
     let filteredLines = manifestoLines;
     
-    // Personalizar as citações com base na localização
     switch (location) {
       case 'feed':
         filteredLines = manifestoLines.filter((_, i) => [0, 4, 6, 7].includes(i));
@@ -58,21 +56,18 @@ const ManifestoTouch: React.FC<ManifestoTouchProps> = ({ location = 'feed' }) =>
         break;
     }
     
-    // Escolher uma citação aleatória
     const randomIndex = Math.floor(Math.random() * filteredLines.length);
     setCurrentQuote(filteredLines[randomIndex]);
     
-    // Mostrar a citação após um tempo aleatório
     const timer = setTimeout(() => {
       setShowQuote(true);
-    }, Math.random() * 10000 + 5000); // Entre 5 e 15 segundos
+    }, Math.random() * 10000 + 5000);
     
     return () => clearTimeout(timer);
   }, [location]);
 
   return (
     <>
-      {/* Citação flutuante */}
       <AnimatePresence>
         {showQuote && !isExpanded && (
           <motion.div
@@ -110,7 +105,6 @@ const ManifestoTouch: React.FC<ManifestoTouchProps> = ({ location = 'feed' }) =>
         )}
       </AnimatePresence>
       
-      {/* Botão do Manifesto e Popover */}
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
