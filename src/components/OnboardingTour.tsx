@@ -99,7 +99,7 @@ const OnboardingTour = () => {
         if (error) throw error;
 
         // Se o campo não existir ou for falso, mostrar o onboarding
-        if (!data || data.has_completed_onboarding === false) {
+        if (data && data.has_completed_onboarding === false) {
           setHasCompletedOnboarding(false);
           setShowOnboarding(true);
         }
