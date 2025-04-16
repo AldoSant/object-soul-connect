@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MoreHorizontal, Book, Quote } from 'lucide-react';
@@ -15,9 +16,9 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-// Correctly define the prop type
+// Corrected interface definition with proper union type
 interface ManifestoTouchProps {
-  location?: 'feed' | 'story' | 'object' | 'profile';
+  location: 'feed' | 'story' | 'object' | 'profile';
 }
 
 const manifestoLines = [
